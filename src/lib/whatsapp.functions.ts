@@ -242,17 +242,34 @@ export const sendWhatsappBlast = createServerFn({ method: "POST" })
           }
         : null;
 
+    const gwUrl = process.env["WHATSAPP_GATEWAY_URL"];
+    const gateway: Gateway = gwUrl
+      ? {
+          url: gwUrl,
+          token: process.env["WHATSAPP_GATEWAY_TOKEN"] || undefined,
+          session: process.env["WHATSAPP_GATEWAY_SESSION"] || "default",
+        }
+      : null;
+
     const results: SendResult[] = [];
-    const fast = !!(green || cloud);
+    const fast = !!(gateway || green || cloud);
     const size = fast ? 5 : 4;
     for (let i = 0; i < data.recipients.length; i += size) {
       const batch = data.recipients.slice(i, i + size);
-      results.push(...(await Promise.all(batch.map((r) => sendOne(r.phone, r.message, cloud, green)))));
+      results.push(
+        ...(await Promise.all(batch.map((r) => sendOne(r.phone, r.message, cloud, green, gateway)))),
+      );
       if (i + size < data.recipients.length) await new Promise((r) => setTimeout(r, fast ? 400 : 900));
     }
     return {
       results,
-      provider: green ? ("green" as const) : cloud ? ("cloud" as const) : ("callmebot" as const),
+      provider: gateway
+        ? ("gateway" as const)
+        : green
+          ? ("green" as const)
+          : cloud
+            ? ("cloud" as const)
+            : ("callmebot" as const),
     };
   });
 
