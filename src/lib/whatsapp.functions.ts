@@ -1,6 +1,28 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+/* ------------------------------------------------------------------
+ * WHATSAPP CONFIG — edit these values here, once. No env vars needed.
+ *
+ * Best free + unlimited option: WAHA (github.com/devlikeapro/waha),
+ * a self-hosted WhatsApp HTTP API. Run it anywhere with Docker:
+ *   docker run -it -p 3000:3000 devlikeapro/waha
+ * Open http://your-host:3000 , scan the QR once with YOUR WhatsApp,
+ * then paste the send URL below. Recipients activate nothing.
+ *
+ * The same slot also accepts UltraMsg or Wassenger URLs — the payload
+ * shape is detected automatically from the host name.
+ * ------------------------------------------------------------------ */
+export const GATEWAY_CONFIG = {
+  /** e.g. "https://waha.yourdomain.com/api/sendText" */
+  url: "",
+  /** WAHA X-Api-Key, UltraMsg token, or Wassenger token. Leave "" if none. */
+  token: "",
+  /** WAHA session name; "default" is right for a fresh install. */
+  session: "default",
+};
+
+
 /**
  * Free WhatsApp sending through CallMeBot.
  *
@@ -242,12 +264,12 @@ export const sendWhatsappBlast = createServerFn({ method: "POST" })
           }
         : null;
 
-    const gwUrl = process.env["WHATSAPP_GATEWAY_URL"];
+    const gwUrl = GATEWAY_CONFIG.url || process.env["WHATSAPP_GATEWAY_URL"] || "";
     const gateway: Gateway = gwUrl
       ? {
           url: gwUrl,
-          token: process.env["WHATSAPP_GATEWAY_TOKEN"] || undefined,
-          session: process.env["WHATSAPP_GATEWAY_SESSION"] || "default",
+          token: GATEWAY_CONFIG.token || process.env["WHATSAPP_GATEWAY_TOKEN"] || undefined,
+          session: GATEWAY_CONFIG.session || process.env["WHATSAPP_GATEWAY_SESSION"] || "default",
         }
       : null;
 
