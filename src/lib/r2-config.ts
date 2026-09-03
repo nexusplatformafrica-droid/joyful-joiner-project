@@ -2,7 +2,7 @@ import { cachedSetting } from "./app-settings";
 
 export type UploadSettings = { backend_url?: string; token?: string };
 
-export const DEFAULT_UPLOAD_API = "https://function-bun-production-8264.up.railway.app";
+export const DEFAULT_UPLOAD_API = "https://function-bun-production-9a7c.up.railway.app";
 
 const clean = (v: string) => v.trim().replace(/\/+$/, "");
 
