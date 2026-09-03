@@ -234,6 +234,7 @@ export function NotifyTab() {
         heading: subject,
         body: render(previewUser).replace(/\*/g, ""),
         content,
+        recommendations,
       })
     : "";
 
