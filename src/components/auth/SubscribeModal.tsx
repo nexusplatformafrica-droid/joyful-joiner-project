@@ -2,7 +2,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import QRCode from "qrcode";
-import { BadgeCheck, Ban, Crown, Gem, Loader2, MonitorPlay, Smartphone, Sparkles } from "lucide-react";
+import {
+  BadgeCheck,
+  Ban,
+  Crown,
+  Gem,
+  Loader2,
+  MonitorPlay,
+  QrCode,
+  Smartphone,
+  Sparkles,
+} from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DEFAULT_PLANS, getPlans } from "@/lib/admin";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,11 +24,21 @@ import {
   syncTransaction,
   type PayPlan,
 } from "@/lib/payments";
-import { formatMoney, isValidMsisdn } from "@/lib/relworx";
+import {
+  COUNTRIES,
+  convertPrice,
+  countryByCode,
+  countryFromPhone,
+  formatAmount,
+  isValidFor,
+  priceNotice,
+} from "@/lib/countries";
 import type { Row } from "@/lib/fdb";
 import { PaymentFailedModal } from "@/components/auth/PaymentFailedModal";
 
 const TAGS: Record<string, string> = { daily: "Try it", "s-monthly": "Popular" };
+
+const COUNTRY_KEY = "luofilm:pay-country";
 
 const PERKS = [
   { icon: Sparkles, label: "Premium contents" },
@@ -27,6 +47,7 @@ const PERKS = [
 ];
 
 type Phase = "idle" | "phone" | "waiting" | "done" | "failed";
+
 
 export function SubscribeModal({
   open,
