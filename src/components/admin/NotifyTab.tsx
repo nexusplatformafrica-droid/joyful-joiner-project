@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Search, Send, MessageCircle, CheckCheck, ExternalLink, Users } from "lucide-react";
+import { Search, Send, MessageCircle, CheckCheck, ExternalLink, Users, Zap, Square } from "lucide-react";
 import { db as supabase } from "@/lib/db";
 import {
   callmebotKeyFor,
@@ -11,7 +11,9 @@ import {
   waLink,
   type SendResult,
 } from "@/lib/whatsapp.functions";
+import { startBrowserBlast, type BrowserBlastHandle } from "@/lib/whatsapp-browser";
 import { Empty, Panel, Pill, goldBtn, ghostBtn, softField } from "./ui";
+
 
 type Row = { id: string; display_name: string | null; phone: string | null; email: string | null };
 
