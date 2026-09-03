@@ -3,6 +3,8 @@ import { base64ToBytes, bytesToBase64, hmacMd5, md5Hex } from "./md5";
 const SECRET = "76iRl07s0xSN9jqmEWAt79EBJZulIQIsV64FZr2O";
 
 const HOSTS = [
+  "https://api7.aoneroom.com",
+  "https://api8.aoneroom.com",
   "https://api6.aoneroom.com",
   "https://api5.aoneroom.com",
   "https://api4.aoneroom.com",
@@ -10,10 +12,10 @@ const HOSTS = [
   "https://api3.aoneroom.com",
   "https://api6sg.aoneroom.com",
   "https://api.inmoviebox.com",
-  "https://api7.aoneroom.com",
-  "https://api8.aoneroom.com",
 ];
 
+/** API prefix required on every catalog/resource/download path. */
+export const API_PREFIX = "/wefeed-mobile-bff";
 
 const RETRY_STATUS = new Set([403, 406, 407, 429, 500, 502, 503, 504]);
 
@@ -22,20 +24,38 @@ const isBrowser = typeof window !== "undefined" && typeof document !== "undefine
 
 const md5 = (data: string | Uint8Array) => md5Hex(data);
 
+/**
+ * Canonical query per APK 4.0.02.0831.02: pairs are URL-decoded, duplicate
+ * names overwrite (the client uses a map), then sorted by decoded name.
+ */
 function sortedQuery(url: URL) {
-  const keys = [...new Set([...url.searchParams.keys()])].sort();
-  const parts: string[] = [];
-  for (const key of keys) for (const value of url.searchParams.getAll(key)) parts.push(`${key}=${value}`);
-  return parts.join("&");
+  const decode = (value: string) => {
+    try {
+      return decodeURIComponent(value.replace(/\+/g, " "));
+    } catch {
+      return value;
+    }
+  };
+  const values = new Map<string, string>();
+  for (const part of url.search.slice(1).split("&")) {
+    if (!part) continue;
+    const eq = part.indexOf("=");
+    values.set(decode(eq < 0 ? part : part.slice(0, eq)), decode(eq < 0 ? "" : part.slice(eq + 1)));
+  }
+  return [...values.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("&");
 }
 
 function canonicalString(method: string, url: string, body: string | null, ts: number) {
   const parsed = new URL(url);
   const query = sortedQuery(parsed);
   const canonicalUrl = query ? `${parsed.pathname}?${query}` : parsed.pathname;
-  const bodyBuf = body ? encoder.encode(body) : null;
-  const bodyHash = bodyBuf ? md5(bodyBuf.subarray(0, 102_400)) : "";
-  const bodyLength = bodyBuf ? String(bodyBuf.length) : "";
+  // UTF-16 string length (Java/Kotlin semantics) and a 102,400-character —
+  // not byte — body prefix for the hash.
+  const bodyHash = body ? md5(encoder.encode(body.slice(0, 102_400))) : "";
+  const bodyLength = body ? String(body.length) : "";
   return [
     method.toUpperCase(),
     "application/json",
@@ -46,6 +66,7 @@ function canonicalString(method: string, url: string, body: string | null, ts: n
     canonicalUrl,
   ].join("\n");
 }
+
 
 function signature(method: string, url: string, body: string | null, ts: number) {
   const padded = SECRET + "=".repeat((4 - (SECRET.length % 4)) % 4);
@@ -79,13 +100,15 @@ function getIdentity(): Identity {
     ["13", "TQ2A.230405.003"],
   ] as const);
   const model = pick(["23078RKD5C", "2201117TY", "22101316G", "M2012K11AG"] as const);
-  const versionCode = 50040002;
+  // APK 4.0.02.0831.02
+  const versionCode = 50020126;
   identity = {
     userAgent: `com.community.oneroom/${versionCode} (Linux; U; Android ${android[0]}; en_US; ${model}; Build/${android[1]}; Cronet/135.0.7012.3)`,
     clientInfo: JSON.stringify({
       package_name: "com.community.oneroom",
-      version_name: "4.0.02.0825.03",
+      version_name: "4.0.02.0831.02",
       version_code: versionCode,
+
       os: "android",
       os_version: android[0],
       install_ch: "ps",
@@ -435,10 +458,12 @@ export async function fetchDetails(subjectId: string): Promise<TitleDetails> {
   let seasons: { season: number; episodes: number }[] = [];
   if (base.type === "series") {
     try {
+      // season-info/v2 (APK 4.0.02.0831.02); v1 kept as a fallback.
       const info = await request(
         "GET",
-        `/wefeed-mobile-bff/subject-api/season-info?subjectId=${subjectId}`,
-      );
+        `${API_PREFIX}/subject-api/season-info/v2?subjectId=${subjectId}&isVip=0`,
+      ).catch(() => request("GET", `${API_PREFIX}/subject-api/season-info?subjectId=${subjectId}`));
+
       const list: any[] = Array.isArray(info?.seasons) ? info.seasons : Array.isArray(info) ? info : [];
       seasons = list
         .map((s) => ({
@@ -511,9 +536,13 @@ const toSource = (entry: any): StreamSource => ({
 
 export async function fetchSources(subjectId: string, season = 0, episode = 0) {
   const isEpisode = season > 0 && episode > 0;
-  const range = isEpisode ? `&se=${season}&ep=${episode}` : "";
+  // APK 4.0.02.0831.02 exposes resource/v2 with se/epFrom/epTo (the old `ep`
+  // name is kept only as a legacy fallback below).
+  const V2 = `${API_PREFIX}/subject-api/resource/v2`;
+  const V1 = `${API_PREFIX}/subject-api/resource`;
+  const range = isEpisode ? `&se=${season}&epFrom=${episode}&epTo=${episode}` : "";
   const page = isEpisode ? Math.max(1, Math.ceil(episode / 20)) : 1;
-  const base = `/wefeed-mobile-bff/subject-api/resource?subjectId=${subjectId}${range}&perPage=20`;
+  const base = `${V2}?subjectId=${subjectId}${range}&perPage=20`;
 
   const data = await request("GET", `${base}&page=${page}`).catch(() => null as any);
 
@@ -539,11 +568,18 @@ export async function fetchSources(subjectId: string, season = 0, episode = 0) {
   // widening the query until something playable comes back.
   if (!lists.some((l) => l.length)) {
     const fallbacks = isEpisode
-      ? [`${base}&page=1`, `/wefeed-mobile-bff/subject-api/resource?subjectId=${subjectId}&page=1&perPage=20`]
+      ? [
+          `${base}&page=1`,
+          `${V1}?subjectId=${subjectId}&se=${season}&ep=${episode}&page=1&perPage=20`,
+          `${V2}?subjectId=${subjectId}&page=1&perPage=20`,
+          `${V1}?subjectId=${subjectId}&page=1&perPage=20`,
+        ]
       : [
-          `/wefeed-mobile-bff/subject-api/resource?subjectId=${subjectId}&se=1&ep=1&page=1&perPage=20`,
-          `/wefeed-mobile-bff/subject-api/resource?subjectId=${subjectId}&page=2&perPage=20`,
+          `${V1}?subjectId=${subjectId}&page=1&perPage=20`,
+          `${V2}?subjectId=${subjectId}&se=1&epFrom=1&epTo=1&page=1&perPage=20`,
+          `${V2}?subjectId=${subjectId}&page=2&perPage=20`,
         ];
+
     for (const path of fallbacks) {
       const res = await request("GET", path).catch(() => null as any);
       const list = Array.isArray(res?.list) ? res.list : [];
@@ -749,10 +785,17 @@ export async function fetchPlayback(
   const se = season > 0 ? season : 0;
   const ep = se > 0 ? Math.max(1, episode) : 0;
   const query = `subjectId=${subjectId}&se=${se}&ep=${ep}`;
-  const data = await request("GET", `/wefeed-mobile-bff/subject-api/play-info?${query}`).catch(
-    () => null as any,
-  );
+  // play-info/v2 (APK 4.0.02.0831.02) with the v1 path as a fallback.
+  const data = await request("GET", `${API_PREFIX}/subject-api/play-info/v2?${query}`)
+    .then((res: any) => (Array.isArray(res?.streams) && res.streams.length ? res : null))
+    .catch(() => null as any)
+    .then(
+      async (res: any) =>
+        res ??
+        (await request("GET", `${API_PREFIX}/subject-api/play-info?${query}`).catch(() => null as any)),
+    );
   const stream = Array.isArray(data?.streams) ? data.streams[0] : null;
+
 
   const cookie: string = stream?.signCookie ?? "";
   if (!cookie) return null;
@@ -801,4 +844,36 @@ export async function fetchPlayback(
       .filter((resolution) => resolution > 0),
     codec: stream?.codecName ? String(stream.codecName) : null,
   };
+}
+
+/* ------------------------------------------------------------------------- *
+ * Download lifecycle (APK 4.0.02.0831.02)
+ *
+ * `start-download-resource` is the authorization/accounting step and
+ * `finish-download-resource` must only be sent after the media transfer
+ * completes successfully. Neither call carries the media bytes.
+ * ------------------------------------------------------------------------- */
+
+type DownloadItem = { subjectId: string; resourceId: string; episode: number };
+
+function downloadBody(subjectId: string, resourceId: string, episode = 0) {
+  return { items: [{ subjectId, resourceId, episode }] satisfies DownloadItem[] };
+}
+
+/** Authorize/announce a download. Never blocks the transfer on failure. */
+export async function startDownload(subjectId: string, resourceId: string, episode = 0) {
+  return request(
+    "POST",
+    `${API_PREFIX}/subject-api/start-download-resource`,
+    downloadBody(subjectId, resourceId, episode),
+  ).catch(() => null);
+}
+
+/** Report a completed transfer. Call only after the bytes were delivered. */
+export async function finishDownload(subjectId: string, resourceId: string, episode = 0) {
+  return request(
+    "POST",
+    `${API_PREFIX}/subject-api/finish-download-resource`,
+    downloadBody(subjectId, resourceId, episode),
+  ).catch(() => null);
 }
