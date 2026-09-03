@@ -3,6 +3,8 @@ import { base64ToBytes, bytesToBase64, hmacMd5, md5Hex } from "./md5";
 const SECRET = "76iRl07s0xSN9jqmEWAt79EBJZulIQIsV64FZr2O";
 
 const HOSTS = [
+  "https://api7.aoneroom.com",
+  "https://api8.aoneroom.com",
   "https://api6.aoneroom.com",
   "https://api5.aoneroom.com",
   "https://api4.aoneroom.com",
@@ -10,10 +12,10 @@ const HOSTS = [
   "https://api3.aoneroom.com",
   "https://api6sg.aoneroom.com",
   "https://api.inmoviebox.com",
-  "https://api7.aoneroom.com",
-  "https://api8.aoneroom.com",
 ];
 
+/** API prefix required on every catalog/resource/download path. */
+export const API_PREFIX = "/wefeed-mobile-bff";
 
 const RETRY_STATUS = new Set([403, 406, 407, 429, 500, 502, 503, 504]);
 
@@ -22,20 +24,38 @@ const isBrowser = typeof window !== "undefined" && typeof document !== "undefine
 
 const md5 = (data: string | Uint8Array) => md5Hex(data);
 
+/**
+ * Canonical query per APK 4.0.02.0831.02: pairs are URL-decoded, duplicate
+ * names overwrite (the client uses a map), then sorted by decoded name.
+ */
 function sortedQuery(url: URL) {
-  const keys = [...new Set([...url.searchParams.keys()])].sort();
-  const parts: string[] = [];
-  for (const key of keys) for (const value of url.searchParams.getAll(key)) parts.push(`${key}=${value}`);
-  return parts.join("&");
+  const decode = (value: string) => {
+    try {
+      return decodeURIComponent(value.replace(/\+/g, " "));
+    } catch {
+      return value;
+    }
+  };
+  const values = new Map<string, string>();
+  for (const part of url.search.slice(1).split("&")) {
+    if (!part) continue;
+    const eq = part.indexOf("=");
+    values.set(decode(eq < 0 ? part : part.slice(0, eq)), decode(eq < 0 ? "" : part.slice(eq + 1)));
+  }
+  return [...values.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("&");
 }
 
 function canonicalString(method: string, url: string, body: string | null, ts: number) {
   const parsed = new URL(url);
   const query = sortedQuery(parsed);
   const canonicalUrl = query ? `${parsed.pathname}?${query}` : parsed.pathname;
-  const bodyBuf = body ? encoder.encode(body) : null;
-  const bodyHash = bodyBuf ? md5(bodyBuf.subarray(0, 102_400)) : "";
-  const bodyLength = bodyBuf ? String(bodyBuf.length) : "";
+  // UTF-16 string length (Java/Kotlin semantics) and a 102,400-character —
+  // not byte — body prefix for the hash.
+  const bodyHash = body ? md5(encoder.encode(body.slice(0, 102_400))) : "";
+  const bodyLength = body ? String(body.length) : "";
   return [
     method.toUpperCase(),
     "application/json",
@@ -46,6 +66,7 @@ function canonicalString(method: string, url: string, body: string | null, ts: n
     canonicalUrl,
   ].join("\n");
 }
+
 
 function signature(method: string, url: string, body: string | null, ts: number) {
   const padded = SECRET + "=".repeat((4 - (SECRET.length % 4)) % 4);
