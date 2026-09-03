@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Search, Send, MessageCircle, CheckCheck, ExternalLink } from "lucide-react";
+import { Search, Send, MessageCircle, CheckCheck, ExternalLink, Users } from "lucide-react";
 import { db as supabase } from "@/lib/db";
 import {
   callmebotKeyFor,
@@ -64,8 +64,9 @@ export function NotifyTab() {
       .replaceAll("{title}", title || "a new title");
 
   const blast = useMutation({
-    mutationFn: async () => {
-      const recipients = selected.map((u) => ({ phone: u.phone!, message: render(u) }));
+    mutationFn: async (target?: Row[]) => {
+      const list = target ?? selected;
+      const recipients = list.map((u) => ({ phone: u.phone!, message: render(u) }));
       return send({ data: { recipients } });
     },
     onSuccess: (res) => {
@@ -77,6 +78,18 @@ export function NotifyTab() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // One click, no confirmation: fires to every user with a phone number.
+  const sendToEveryone = () => {
+    const all = people.data ?? [];
+    if (all.length === 0) {
+      toast.error("No users with a phone number yet");
+      return;
+    }
+    setPicked(Object.fromEntries(all.map((u) => [u.id, true])));
+    blast.mutate(all);
+  };
+
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
@@ -185,12 +198,25 @@ export function NotifyTab() {
           <button
             type="button"
             disabled={selected.length === 0 || blast.isPending}
-            onClick={() => blast.mutate()}
+            onClick={() => blast.mutate(undefined)}
             className={`${goldBtn} mt-4 flex w-full items-center justify-center gap-2`}
           >
             <Send className="size-4" />
             {blast.isPending ? "Sending…" : `Send to ${selected.length} user${selected.length === 1 ? "" : "s"}`}
           </button>
+
+          <button
+            type="button"
+            disabled={blast.isPending || (people.data ?? []).length === 0}
+            onClick={sendToEveryone}
+            className={`${ghostBtn} mt-2 flex w-full items-center justify-center gap-2`}
+          >
+            <Users className="size-4" />
+            {blast.isPending
+              ? "Sending…"
+              : `Send to all ${(people.data ?? []).length} users now`}
+          </button>
+
         </Panel>
 
         {results.length > 0 && (

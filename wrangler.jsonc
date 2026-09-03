@@ -1,0 +1,34 @@
+{
+  // Deploy config for Cloudflare Workers.
+  //
+  // The Vite/nitro build emits a Worker into dist/server (plus static assets in
+  // dist/client) and also writes dist/server/wrangler.json + .wrangler/deploy/config.json.
+  // This root file mirrors that output so `wrangler deploy` finds a valid config even
+  // before a build has run — which is what stops Wrangler from trying to "configure"
+  // the project and failing with "Cannot modify Vite config: could not find a valid
+  // plugins array" (our Vite config comes from @lovable.dev/vite-tanstack-config and
+  // intentionally has no plugins array).
+  //
+  // Cloudflare build settings:
+  //   Build command:  bun run build
+  //   Deploy command: bun run deploy   (or: npx wrangler deploy)
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "luofilm",
+  "main": "dist/server/index.mjs",
+  "compatibility_date": "2026-09-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "no_bundle": true,
+  "rules": [
+    {
+      "type": "ESModule",
+      "globs": ["**/*.mjs", "**/*.js"]
+    }
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "dist/client"
+  },
+  "observability": {
+    "enabled": true
+  }
+}
