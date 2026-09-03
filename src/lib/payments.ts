@@ -1,5 +1,7 @@
 import { fdb, nowIso, uuid, type Row } from "./fdb";
-import { CURRENCY_CODE, normalizeMsisdn, readStatus, relworx } from "./relworx";
+import { countryByCurrency, countryFromPhone, isValidFor, normalizeFor } from "./countries";
+import { CURRENCY_CODE, readStatus, relworx } from "./relworx";
+
 
 export type PayPlan = {
   id: string;
@@ -45,8 +47,13 @@ export async function createPaymentIntent(input: {
   userId: string;
   plan: PayPlan;
   method: PayMethod;
+  /** Currency the buyer pays in (defaults to UGX). */
+  currency?: string;
+  /** Already-converted amount in that currency (defaults to the UGX price). */
+  amount?: number;
 }) {
   const id = uuid();
+  const currency = (input.currency ?? CURRENCY_CODE).toUpperCase();
   const row: Row = {
     id,
     user_id: input.userId,
@@ -55,8 +62,10 @@ export async function createPaymentIntent(input: {
     tier: input.plan.tier ?? "vip",
     duration_days: input.plan.days,
     device_limit: Number(input.plan.devices ?? 1) || 1,
-    amount: input.plan.price,
-    currency: CURRENCY_CODE,
+    amount: Number(input.amount ?? input.plan.price),
+    base_amount: input.plan.price,
+    currency,
+    country: countryByCurrency(currency).code,
     kind: "payment",
     status: input.method === "link" ? "awaiting_scan" : "pending",
     method: input.method,
@@ -76,10 +85,17 @@ export async function createPaymentIntent(input: {
 }
 
 export async function startMobileMoney(tx: Row, phone: string) {
-  const msisdn = normalizeMsisdn(phone);
+  // The phone number decides the country when it carries a country code,
+  // otherwise the currency chosen at checkout does.
+  const country = countryFromPhone(phone) ?? countryByCurrency(String(tx.currency ?? CURRENCY_CODE));
+  const msisdn = normalizeFor(phone, country);
+  if (!isValidFor(msisdn, country))
+    throw new Error(`Enter a valid ${country.name} mobile money number`);
+
   const res = await relworx.deposit({
     msisdn,
     amount: Number(tx.amount),
+    currency: country.currency,
     reference: String(tx.reference),
     description: String(tx.note ?? "Subscription"),
   });
@@ -90,6 +106,8 @@ export async function startMobileMoney(tx: Row, phone: string) {
     .update({
       msisdn,
       phone: msisdn,
+      currency: country.currency,
+      country: country.code,
       internal_reference: internal,
       status: "pending",
       method: "mobile_money",
@@ -98,6 +116,7 @@ export async function startMobileMoney(tx: Row, phone: string) {
     .eq("id", String(tx.id));
   return { ...tx, msisdn, internal_reference: internal, status: "pending" };
 }
+
 
 async function activateSubscription(tx: Row) {
   // One transaction may only ever grant one subscription, no matter how many

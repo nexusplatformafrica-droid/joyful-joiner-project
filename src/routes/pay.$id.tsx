@@ -84,7 +84,10 @@ function PayPage() {
             <div className="mt-4 rounded-2xl bg-[linear-gradient(120deg,oklch(0.88_0.07_75),oklch(0.82_0.1_65))] p-4">
               <p className="text-[11px] opacity-70">Plan</p>
               <p className="text-[17px] font-black leading-tight">{String(tx.plan_name ?? "Membership")}</p>
-              <p className="mt-2 text-[24px] font-black leading-none">{formatMoney(Number(tx.amount))}</p>
+              <p className="mt-2 text-[24px] font-black leading-none">
+                {formatMoney(Number(tx.amount), String(tx.currency ?? "UGX"))}
+              </p>
+
             </div>
 
             {phase !== "done" && (

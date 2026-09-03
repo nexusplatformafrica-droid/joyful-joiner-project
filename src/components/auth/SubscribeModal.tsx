@@ -2,7 +2,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import QRCode from "qrcode";
-import { BadgeCheck, Ban, Crown, Gem, Loader2, MonitorPlay, Smartphone, Sparkles } from "lucide-react";
+import {
+  BadgeCheck,
+  Ban,
+  Crown,
+  Gem,
+  Loader2,
+  MonitorPlay,
+  QrCode,
+  Smartphone,
+  Sparkles,
+} from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DEFAULT_PLANS, getPlans } from "@/lib/admin";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,11 +24,21 @@ import {
   syncTransaction,
   type PayPlan,
 } from "@/lib/payments";
-import { formatMoney, isValidMsisdn } from "@/lib/relworx";
+import {
+  COUNTRIES,
+  convertPrice,
+  countryByCode,
+  countryFromPhone,
+  formatAmount,
+  isValidFor,
+  priceNotice,
+} from "@/lib/countries";
 import type { Row } from "@/lib/fdb";
 import { PaymentFailedModal } from "@/components/auth/PaymentFailedModal";
 
 const TAGS: Record<string, string> = { daily: "Try it", "s-monthly": "Popular" };
+
+const COUNTRY_KEY = "luofilm:pay-country";
 
 const PERKS = [
   { icon: Sparkles, label: "Premium contents" },
@@ -27,6 +47,7 @@ const PERKS = [
 ];
 
 type Phase = "idle" | "phone" | "waiting" | "done" | "failed";
+
 
 export function SubscribeModal({
   open,
@@ -43,6 +64,15 @@ export function SubscribeModal({
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState("");
   const [qr, setQr] = useState("");
+  const [showScan, setShowScan] = useState(false);
+  const [countryCode, setCountryCode] = useState(() => {
+    try {
+      return localStorage.getItem(COUNTRY_KEY) ?? "UG";
+    } catch {
+      return "UG";
+    }
+  });
+  const country = countryByCode(countryCode);
   const settings = useQuery({ queryKey: ["plans"], queryFn: getPlans });
   const source = settings.data ?? DEFAULT_PLANS;
 
@@ -69,11 +99,26 @@ export function SubscribeModal({
     tier,
     devices: Number(raw.devices ?? 1) || 1,
   };
+  /** Same plan, priced in the buyer's own currency. */
+  const localPrice = convertPrice(plan.price, country);
+  const notice = priceNotice(localPrice, country);
   const [failOpen, setFailOpen] = useState(false);
+
+  const chooseCountry = (code: string) => {
+    setCountryCode(code);
+    setPhase("idle");
+    try {
+      localStorage.setItem(COUNTRY_KEY, code);
+    } catch {
+      /* ignore */
+    }
+  };
 
   useEffect(() => {
     if (!profile?.phone || phone) return;
     setPhone(String(profile.phone));
+    const detected = countryFromPhone(String(profile.phone));
+    if (detected) setCountryCode(detected.code);
   }, [profile, phone]);
 
   /** Mints a scannable pay-on-another-device link for the selected plan. */
@@ -81,7 +126,13 @@ export function SubscribeModal({
     if (!user || !open) return;
     try {
       if (linkTx.current) await expireTx(String(linkTx.current.id)).catch(() => {});
-      const tx = await createPaymentIntent({ userId: user.id, plan, method: "link" });
+      const tx = await createPaymentIntent({
+        userId: user.id,
+        plan,
+        method: "link",
+        currency: country.currency,
+        amount: localPrice,
+      });
       linkTx.current = tx;
       const url = `${window.location.origin}/pay/${tx.id}`;
       setQr(await QRCode.toDataURL(url, { margin: 1, width: 240 }));
@@ -90,7 +141,8 @@ export function SubscribeModal({
     }
     // plan identity is what matters, not the object reference
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, open, plan.id, plan.price]);
+  }, [user, open, plan.id, plan.price, country.currency, localPrice]);
+
 
   useEffect(() => {
     if (open && phase === "idle") void mintLink();
@@ -133,16 +185,31 @@ export function SubscribeModal({
 
   const pay = async () => {
     if (!user) return;
-    if (!isValidMsisdn(phone)) {
-      toast.error("Enter a valid MTN or Airtel number, e.g. 0770 123 456");
+    if (!isValidFor(phone, country)) {
+      toast.error(`Enter a valid ${country.name} mobile money number`);
+      return;
+    }
+    if (notice) {
+      toast.error(
+        notice === "low"
+          ? `This plan is below the ${country.currency} minimum of ${country.min.toLocaleString()}`
+          : `This plan is above the ${country.currency} maximum of ${country.max.toLocaleString()}`,
+      );
       return;
     }
     setPhase("waiting");
     setStatus("Sending the payment request to your phone…");
     try {
-      const tx = await createPaymentIntent({ userId: user.id, plan, method: "mobile_money" });
+      const tx = await createPaymentIntent({
+        userId: user.id,
+        plan,
+        method: "mobile_money",
+        currency: country.currency,
+        amount: localPrice,
+      });
       liveTx.current = await startMobileMoney(tx, phone);
       setStatus("Approve the prompt on your phone to finish.");
+
     } catch (err) {
       setPhase("failed");
       setStatus(err instanceof Error ? err.message : "Could not start the payment.");
@@ -226,9 +293,10 @@ export function SubscribeModal({
                     )}
                     <p className="truncate text-[10px] font-semibold leading-tight sm:text-[13px]">{p.name}</p>
                     <p className="mt-1 text-[13px] font-black leading-none sm:mt-2 sm:text-[22px]">
-                      <span className="text-[9px] font-bold sm:text-[13px]">UGX </span>
-                      {Math.round(p.price).toLocaleString()}
+                      <span className="text-[9px] font-bold sm:text-[13px]">{country.currency} </span>
+                      {Math.round(convertPrice(p.price, country)).toLocaleString()}
                     </p>
+
                     <p className="mt-0.5 text-[10px] opacity-70 sm:mt-1 sm:text-[11px]">
                       {p.days === 1 ? "24 hours" : `${p.days} days`}
                     </p>
@@ -268,24 +336,86 @@ export function SubscribeModal({
           <aside className="flex min-w-0 flex-col justify-between border-black/5 bg-white/50 px-3 pb-3 pt-1 sm:p-5 md:border-l">
             <div className="min-w-0">
               <p className="text-[11px] opacity-70 sm:text-[12px]">Payment</p>
-              <p className="text-[20px] font-black leading-none sm:text-[30px]">{formatMoney(plan.price)}</p>
+              <p className="text-[20px] font-black leading-none sm:text-[30px]">
+                {formatAmount(localPrice, country.currency)}
+              </p>
+
+              {/* Available countries — a compact scroller so the holder never grows. */}
+              <div className="mt-2 min-w-0">
+                <p className="text-[10px] font-semibold opacity-60">Available in</p>
+                <div className="mt-1 flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {COUNTRIES.map((c) => (
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => chooseCountry(c.code)}
+                      title={`${c.name} · ${c.currency}`}
+                      className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold leading-none transition ${
+                        c.code === country.code
+                          ? "bg-[oklch(0.88_0.11_82)] text-[oklch(0.3_0.06_60)] ring-1 ring-black/10"
+                          : "bg-white/70 opacity-70 ring-1 ring-black/5 hover:opacity-100"
+                      }`}
+                    >
+                      <span className="mr-1">{c.flag}</span>
+                      {c.short}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {notice && (
+                <p className="mt-2 text-[10.5px] font-semibold leading-snug text-[oklch(0.55_0.18_25)]">
+                  {notice === "low"
+                    ? `This amount is below the ${country.currency} minimum (${country.min.toLocaleString()}). Pick a longer plan.`
+                    : `This amount is above the ${country.currency} maximum (${country.max.toLocaleString()}). Pick a shorter plan.`}
+                </p>
+              )}
 
               {phase === "idle" && qr && (
-                <div className="mt-4 hidden rounded-2xl bg-white/80 p-3 text-center ring-1 ring-black/5 md:block">
-                  <img src={qr} alt="Scan to pay on your phone" className="mx-auto size-[150px]" />
-                  <p className="mt-2 text-[10px] opacity-60">Scan to pay from another device</p>
-                </div>
+                <>
+                  <div className="mt-4 hidden rounded-2xl bg-white/80 p-3 text-center ring-1 ring-black/5 md:block">
+                    <img src={qr} alt="Scan to pay on your phone" className="mx-auto size-[150px]" />
+                    <p className="mt-2 text-[10px] opacity-60">Scan to pay from another device</p>
+                  </div>
+
+                  {/* Mobile: the scan code stays collapsed so the sheet keeps its size. */}
+                  <button
+                    type="button"
+                    onClick={() => setShowScan((v) => !v)}
+                    className="mt-2 flex w-full items-center justify-between rounded-full bg-white/70 px-3 py-2 text-[11px] font-semibold ring-1 ring-black/5 md:hidden"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <QrCode className="size-3.5" />
+                      {showScan ? "Hide scan code" : "Show scan code"}
+                    </span>
+                    <span className="opacity-60">{formatAmount(localPrice, country.currency)}</span>
+                  </button>
+                  {showScan && (
+                    <div className="mt-2 rounded-2xl bg-white/80 p-3 text-center ring-1 ring-black/5 md:hidden">
+                      <img src={qr} alt="Scan to pay on your phone" className="mx-auto size-[130px]" />
+                      <p className="mt-1 text-[10px] opacity-60">
+                        {plan.name} · {formatAmount(localPrice, country.currency)}
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
 
 
               {phase === "phone" && (
                 <div className="mt-2 sm:mt-4">
-                  <label className="text-[11px] font-semibold opacity-70">Mobile money number</label>
+                  <label className="text-[11px] font-semibold opacity-70">
+                    {country.flag} {country.name} mobile money number
+                  </label>
                   <input
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      const detected = countryFromPhone(e.target.value);
+                      if (detected && detected.code !== country.code) chooseCountry(detected.code);
+                    }}
                     inputMode="tel"
-                    placeholder="0770 123 456"
+                    placeholder={`+${country.dial} …`}
                     className="mt-1 h-10 w-full rounded-2xl bg-white px-4 text-sm outline-none ring-1 ring-black/10 focus:ring-2 focus:ring-[oklch(0.82_0.1_65)] sm:h-11"
                   />
                 </div>
@@ -300,10 +430,12 @@ export function SubscribeModal({
 
               {phase === "idle" && (
                 <p className="mt-2 text-[10.5px] leading-snug opacity-65 sm:mt-4 sm:text-[11px]">
-                  Pay with MTN MoMo or Airtel Money. Your membership starts the moment payment is confirmed.
+                  Pay with {country.providers.join(", ")}. Your membership starts the moment payment is
+                  confirmed.
                 </p>
               )}
             </div>
+
 
             <div className="mt-3 sm:mt-6">
               <button

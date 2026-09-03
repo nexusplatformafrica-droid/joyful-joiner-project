@@ -1,28 +1,52 @@
 import { cachedSetting } from "./app-settings";
+import {
+  COUNTRIES,
+  DEFAULT_COUNTRY,
+  countryByCurrency,
+  countryFromPhone,
+  formatAmount,
+  isValidFor,
+  normalizeFor,
+} from "./countries";
 
 export type PaymentSettings = { backend_url?: string };
 
-export const DEFAULT_PAYMENT_BACKEND = "https://function-bun-production-038e6.up.railway.app";
+export const DEFAULT_PAYMENT_BACKEND = "https://function-bun-production-e268.up.railway.app";
+
+/** Older Railway deployments that must never be used again. */
+const RETIRED_BACKENDS = [
+  "function-bun-production-038e6",
+  "function-bun-production-8264",
+  "function-bun-production-9a7c",
+];
 
 export function paymentBackend() {
   const saved = cachedSetting<PaymentSettings>("payment", {});
-  return (saved.backend_url || DEFAULT_PAYMENT_BACKEND).trim().replace(/\/+$/, "");
+  const url = (saved.backend_url || "").trim().replace(/\/+$/, "");
+  if (!url || RETIRED_BACKENDS.some((r) => url.includes(r))) return DEFAULT_PAYMENT_BACKEND;
+  return url;
 }
 
 export const CURRENCY_CODE = "UGX";
 export const CURRENCY_LABEL = "UG SHS";
-export const formatMoney = (n: number) =>
-  `${CURRENCY_LABEL} ${Number(n || 0).toLocaleString("en-UG", { maximumFractionDigits: 0 })}`;
+export const formatMoney = (n: number, currency = CURRENCY_CODE) =>
+  currency === "UGX"
+    ? `${CURRENCY_LABEL} ${Number(n || 0).toLocaleString("en-UG", { maximumFractionDigits: 0 })}`
+    : formatAmount(Number(n || 0), currency);
 
+/** Normalises a number, auto-detecting the country when possible. */
 export function normalizeMsisdn(input: string) {
-  const d = (input ?? "").replace(/[^0-9]/g, "");
-  if (d.startsWith("256")) return `+${d}`;
-  if (d.startsWith("0")) return `+256${d.slice(1)}`;
-  if (d.length === 9) return `+256${d}`;
-  return `+${d}`;
+  const digits = (input ?? "").replace(/[^0-9]/g, "");
+  const detected = countryFromPhone(digits);
+  return normalizeFor(input, detected ?? DEFAULT_COUNTRY);
 }
 
-export const isValidMsisdn = (v: string) => /^\+256[37]\d{8}$/.test(normalizeMsisdn(v));
+export const isValidMsisdn = (v: string) => {
+  const detected = countryFromPhone((v ?? "").replace(/[^0-9]/g, ""));
+  if (detected) return isValidFor(v, detected);
+  return isValidFor(v, DEFAULT_COUNTRY);
+};
+
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${paymentBackend()}${path}`, {
@@ -71,7 +95,12 @@ export const relworx = {
   requestStatus: (internalReference: string) =>
     call<any>(`/api/request-status?internal_reference=${encodeURIComponent(internalReference)}`),
   transactions: () => call<any>("/api/transactions"),
+  detectPhone: (msisdn: string) =>
+    call<any>("/api/detect-phone", { method: "POST", body: JSON.stringify({ msisdn }) }),
+  supportedCountries: () => call<any>("/api/supported-countries"),
+  supportedCurrencies: () => call<any>("/api/supported-currencies"),
 };
+
 
 const SUCCESS = /^(success|successful|completed|complete|paid)$/i;
 const FAILED = /^(failed|failure|cancelled|canceled|declined|error|rejected|expired)$/i;
@@ -147,6 +176,8 @@ export type WithdrawResult = {
   internal_reference: string | null;
   status: "pending" | "success" | "failed";
   message: string;
+  currency: string;
+  msisdn: string;
 };
 
 /**
@@ -157,17 +188,27 @@ export type WithdrawResult = {
 export async function sendWithdrawal(input: {
   phone: string;
   amount: number;
+  currency?: string;
   description?: string;
 }): Promise<WithdrawResult> {
-  const msisdn = normalizeMsisdn(input.phone);
-  if (!isValidMsisdn(msisdn)) throw new Error("Enter a valid Ugandan MTN or Airtel number");
+  const target = input.currency
+    ? countryByCurrency(input.currency)
+    : (countryFromPhone(input.phone) ?? DEFAULT_COUNTRY);
+  const msisdn = normalizeFor(input.phone, target);
+  if (!isValidFor(msisdn, target))
+    throw new Error(`Enter a valid ${target.name} mobile money number`);
   const amount = Math.round(Number(input.amount));
   if (!amount || amount <= 0) throw new Error("Enter a valid amount");
+  if (amount < target.min)
+    throw new Error(`${target.currency} minimum payout is ${target.min.toLocaleString()}`);
+  if (amount > target.max)
+    throw new Error(`${target.currency} maximum payout is ${target.max.toLocaleString()}`);
 
   const reference = `LUO-WD-${Date.now()}`;
   const res = await relworx.withdraw({
     msisdn,
     amount,
+    currency: target.currency,
     reference,
     description: input.description || "LUOFILM payout",
   });
@@ -176,7 +217,14 @@ export async function sendWithdrawal(input: {
   if (!internal) {
     const first = readStatus(res);
     if (first.status === "failed") throw new Error(first.message || "Relworx rejected the payout");
-    return { reference, internal_reference: null, status: first.status, message: first.message };
+    return {
+      reference,
+      internal_reference: null,
+      status: first.status,
+      message: first.message,
+      currency: target.currency,
+      msisdn,
+    };
   }
 
   // Poll for up to ~30s; anything still pending stays pending in the ledger.
@@ -197,10 +245,12 @@ export async function sendWithdrawal(input: {
     message:
       last.message ||
       (last.status === "success" ? "Payout sent" : "Payout is still being processed"),
+    currency: target.currency,
+    msisdn,
   };
 }
 
-/** Live Relworx wallet balance in UGX; null when the service is unreachable. */
+/** Live Relworx wallet balance for a currency; null when unreachable. */
 export async function walletBalance(currency = CURRENCY_CODE): Promise<number | null> {
   try {
     const res = await relworx.balance(currency);
@@ -211,4 +261,18 @@ export async function walletBalance(currency = CURRENCY_CODE): Promise<number | 
   } catch {
     return null;
   }
+}
+
+export type CurrencyBalance = { currency: string; country: string; flag: string; balance: number | null };
+
+/** Live balance for every supported country, fetched in parallel. */
+export async function allWalletBalances(): Promise<CurrencyBalance[]> {
+  return Promise.all(
+    COUNTRIES.map(async (c) => ({
+      currency: c.currency,
+      country: c.name,
+      flag: c.flag,
+      balance: await walletBalance(c.currency),
+    })),
+  );
 }

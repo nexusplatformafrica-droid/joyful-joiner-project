@@ -5,12 +5,14 @@ import { ArrowDownToLine, Wallet, TrendingUp, Receipt } from "lucide-react";
 import { db as supabase } from "@/lib/db";
 import { fullDate, money, seriesByDay } from "@/lib/admin";
 import {
+  allWalletBalances,
   listRelworxTransactions,
-  normalizeMsisdn,
   sendWithdrawal,
   walletBalance,
   type RelworxTx,
 } from "@/lib/relworx";
+import { COUNTRIES, countryByCurrency, formatAmount, normalizeFor } from "@/lib/countries";
+
 import { purgeTable } from "@/lib/fdb";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Empty, Panel, Pill, SoftArea, Stat, goldBtn, softField } from "./ui";
@@ -54,7 +56,7 @@ export function WalletTab() {
   const q = useQuery({ queryKey: ["admin-wallet"], queryFn: loadWallet });
   const [openTx, setOpenTx] = useState<MergedTx | null>(null);
   const [wdOpen, setWdOpen] = useState(false);
-  const [form, setForm] = useState({ phone: "", amount: "", reason: "" });
+  const [form, setForm] = useState({ phone: "", amount: "", reason: "", currency: "UGX" });
 
   const paidOut = (q.data?.wd ?? []).filter((w) => w.status !== "rejected").reduce((s, w) => s + Number(w.amount), 0);
   // The withdrawable amount is whatever Relworx actually holds; the ledger
@@ -65,6 +67,20 @@ export function WalletTab() {
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
+
+  /** Real live balance for every supported country. */
+  const balances = useQuery({
+    queryKey: ["relworx-balances"],
+    queryFn: allWalletBalances,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+
+  const payoutCountry = countryByCurrency(form.currency);
+  const payoutBalance =
+    balances.data?.find((b) => b.currency === form.currency)?.balance ?? null;
+
+
 
 
   const profileOf = (uid: string | null) => (q.data?.profiles ?? []).find((p) => p.id === uid);
@@ -123,18 +139,22 @@ export function WalletTab() {
       const amount = Number(form.amount);
       if (!form.phone.trim()) throw new Error("Phone number is required");
       if (!amount || amount <= 0) throw new Error("Enter a valid amount");
-      if (amount > balance) throw new Error("Amount is more than the available balance");
+      const cap = payoutBalance ?? (form.currency === "UGX" ? balance : null);
+      if (cap != null && amount > cap)
+        throw new Error(`Amount is more than the available ${form.currency} balance`);
 
       const result = await sendWithdrawal({
         phone: form.phone,
         amount,
+        currency: form.currency,
         description: form.reason.trim() || "LUOFILM payout",
       });
 
       const { data: me } = await supabase.auth.getUser();
       const { error } = await supabase.from("luo_withdrawals").insert({
         amount,
-        phone: normalizeMsisdn(form.phone),
+        currency: result.currency,
+        phone: normalizeFor(form.phone, payoutCountry),
         reason: form.reason.trim() || null,
         reference: result.reference,
         internal_reference: result.internal_reference,
@@ -149,15 +169,18 @@ export function WalletTab() {
     onSuccess: (result) => {
       if (result.status === "success") toast.success(result.message || "Payout sent");
       else toast.info(result.message || "Payout is still being processed");
-      setForm({ phone: "", amount: "", reason: "" });
+      setForm({ phone: "", amount: "", reason: "", currency: form.currency });
+
       setWdOpen(false);
       void qc.invalidateQueries({ queryKey: ["admin-wallet"] });
       void qc.invalidateQueries({ queryKey: ["admin-overview"] });
       void qc.invalidateQueries({ queryKey: ["relworx-balance"] });
+      void qc.invalidateQueries({ queryKey: ["relworx-balances"] });
       void qc.invalidateQueries({ queryKey: ["relworx-transactions"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   return (
     <div className="space-y-5">
@@ -180,6 +203,49 @@ export function WalletTab() {
           onClick={() => setWdOpen(true)}
         />
       </div>
+
+      <Panel
+        title="Balances by country"
+        action={
+          <span className="text-[11px] opacity-60">
+            {balances.isFetching ? "refreshing…" : "live from Relworx"}
+          </span>
+        }
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {(balances.data ?? COUNTRIES.map((c) => ({
+            currency: c.currency,
+            country: c.name,
+            flag: c.flag,
+            balance: null as number | null,
+          }))).map((b) => (
+            <button
+              key={b.currency}
+              type="button"
+              onClick={() => {
+                setForm((f) => ({ ...f, currency: b.currency }));
+                setWdOpen(true);
+              }}
+              className="rounded-2xl bg-white/65 px-3 py-3 text-left transition hover:bg-white"
+            >
+              <span className="flex items-center gap-2 text-[12px] font-semibold">
+                <span className="text-[16px]">{b.flag}</span>
+                {b.country}
+              </span>
+              <span className="mt-1 block text-[16px] font-black leading-none">
+                {b.balance == null
+                  ? balances.isLoading
+                    ? "…"
+                    : "unavailable"
+                  : formatAmount(b.balance, b.currency)}
+              </span>
+              <span className="mt-1 block text-[10.5px] opacity-55">{b.currency} wallet</span>
+            </button>
+          ))}
+        </div>
+      </Panel>
+
+
 
       <Panel title="Income · last 21 days">
         <SoftArea data={chart} prefix="UGX " color="oklch(0.68 0.14 160)" />
@@ -305,7 +371,12 @@ export function WalletTab() {
           <DialogHeader>
             <DialogTitle className="text-[18px] font-bold">Withdraw money</DialogTitle>
           </DialogHeader>
-          <p className="text-[12px] opacity-65">Available balance: <b>{money(balance)}</b></p>
+          <p className="text-[12px] opacity-65">
+            Available balance:{" "}
+            <b>
+              {payoutBalance == null ? money(balance) : formatAmount(payoutBalance, form.currency)}
+            </b>
+          </p>
           <form
             className="mt-2 space-y-2"
             onSubmit={(e) => {
@@ -313,8 +384,25 @@ export function WalletTab() {
               withdraw.mutate();
             }}
           >
-            <input className={softField} placeholder="Phone number (MoMo / Airtel)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-            <input className={softField} inputMode="numeric" placeholder="Amount (UGX)" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+            <div className="flex flex-wrap gap-1.5">
+              {COUNTRIES.map((c) => (
+                <button
+                  key={c.code}
+                  type="button"
+                  onClick={() => setForm({ ...form, currency: c.currency })}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+                    form.currency === c.currency
+                      ? "bg-[oklch(0.88_0.11_82)] ring-1 ring-black/10"
+                      : "bg-white/70 opacity-70 ring-1 ring-black/5 hover:opacity-100"
+                  }`}
+                >
+                  {c.flag} {c.currency}
+                </button>
+              ))}
+            </div>
+            <input className={softField} placeholder={`Phone number (${payoutCountry.providers.join(" / ")})`} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <input className={softField} inputMode="numeric" placeholder={`Amount (${form.currency})`} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+
             <textarea
               className="min-h-20 w-full rounded-2xl bg-white/70 p-3 text-sm outline-none ring-1 ring-black/5 placeholder:opacity-50 focus:bg-white focus:ring-2 focus:ring-[oklch(0.82_0.1_65)]"
               placeholder="Reason"

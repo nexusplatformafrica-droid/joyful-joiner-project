@@ -89,6 +89,64 @@ function recRow(recs: NotifyContent[]) {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${cells}</tr></table>`;
 }
 
+/* ---------------- WhatsApp + social ---------------- */
+
+export const WHATSAPP_CHANNEL = "https://whatsapp.com/channel/0029VbCdTbF6buMEQY5wzG3y";
+export const WHATSAPP_CHAT = "https://wa.me/256795592662";
+
+const SOCIALS: Array<{ label: string; href: string }> = [
+  { label: "Facebook", href: "https://www.facebook.com/profile.php?id=61554266548943" },
+  { label: "TikTok", href: "https://www.tiktok.com/@luofilm.site" },
+  { label: "YouTube", href: "https://www.youtube.com/@luofilm" },
+  { label: "Instagram", href: "https://www.instagram.com/luofilm.site" },
+  { label: "X (Twitter)", href: "https://x.com/luofilmsite" },
+  { label: "Telegram", href: "https://t.me/luofilmsite" },
+];
+
+/** Share links for the selected title across every major network. */
+function shareLinks(url: string, text: string) {
+  const u = encodeURIComponent(url);
+  const t = encodeURIComponent(text);
+  return [
+    { label: "WhatsApp", href: `https://wa.me/?text=${t}%20${u}` },
+    { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${u}` },
+    { label: "X", href: `https://twitter.com/intent/tweet?text=${t}&url=${u}` },
+    { label: "Telegram", href: `https://t.me/share/url?url=${u}&text=${t}` },
+    { label: "Messenger", href: `https://www.facebook.com/dialog/send?link=${u}&app_id=0&redirect_uri=${u}` },
+    { label: "Reddit", href: `https://www.reddit.com/submit?url=${u}&title=${t}` },
+    { label: "LinkedIn", href: `https://www.linkedin.com/sharing/share-offsite/?url=${u}` },
+    { label: "Pinterest", href: `https://pinterest.com/pin/create/button/?url=${u}&description=${t}` },
+    { label: "Email", href: `mailto:?subject=${t}&body=${u}` },
+  ];
+}
+
+const chip = (href: string, label: string, bg: string, color: string) =>
+  `<a href="${esc(href)}" style="display:inline-block;background:${bg};color:${color};text-decoration:none;font:700 12px Helvetica,Arial,sans-serif;padding:9px 15px;border-radius:999px;margin:4px 3px;">${esc(label)}</a>`;
+
+function socialBlock(c?: NotifyContent | null) {
+  const url = c?.link || SITE_URL;
+  const text = c ? `${c.title}${c.episode ? ` — ${c.episode}` : ""} on LUOFILM.SITE` : "LUOFILM.SITE";
+
+  const share = shareLinks(url, text)
+    .map((s) => chip(s.href, s.label, "#22252f", MUTED))
+    .join("");
+  const follow = SOCIALS.map((s) => chip(s.href, s.label, "#22252f", MUTED)).join("");
+
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${CARD};border-radius:22px;margin:26px 0 0;border:1px solid rgba(255,255,255,.08);">
+    <tr><td style="padding:20px;" align="center">
+      <div style="margin-bottom:14px;">
+        ${chip(WHATSAPP_CHANNEL, "Join WhatsApp Channel", "#1faf54", "#ffffff")}
+        ${chip(WHATSAPP_CHAT, "Chat on WhatsApp", "#128c7e", "#ffffff")}
+      </div>
+      <div style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:1.4px;color:${GOLD};margin:6px 0 8px;">SHARE THIS</div>
+      <div>${share}</div>
+      <div style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:1.4px;color:${GOLD};margin:16px 0 8px;">FOLLOW LUOFILM</div>
+      <div>${follow}</div>
+    </td></tr>
+  </table>`;
+}
+
+
 export function renderNotifyEmail(opts: {
   name?: string | null;
   heading: string;
@@ -126,6 +184,8 @@ export function renderNotifyEmail(opts: {
           <p style="font:400 15px/1.65 Helvetica,Arial,sans-serif;color:#c9ccd6;margin:0;">${opts.name ? `Hi ${esc(opts.name)},<br/>` : ""}${bodyHtml}</p>
           ${card}
           ${recs.length ? recRow(recs) : ""}
+          ${socialBlock(c)}
+
           <p style="font:400 12px/1.6 Helvetica,Arial,sans-serif;color:#7d8190;margin:28px 0 0;border-top:1px solid rgba(255,255,255,.08);padding-top:18px;">
             With love,<br/><b style="color:${GOLD};">— The Luo Film Team</b><br/><br/>
             You get this because you have an account on <a href="${SITE_URL}" style="color:${GOLD};text-decoration:none;">LUOFILM.SITE</a>.
