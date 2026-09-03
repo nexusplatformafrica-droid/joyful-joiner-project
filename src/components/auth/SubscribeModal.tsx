@@ -185,16 +185,31 @@ export function SubscribeModal({
 
   const pay = async () => {
     if (!user) return;
-    if (!isValidMsisdn(phone)) {
-      toast.error("Enter a valid MTN or Airtel number, e.g. 0770 123 456");
+    if (!isValidFor(phone, country)) {
+      toast.error(`Enter a valid ${country.name} mobile money number`);
+      return;
+    }
+    if (notice) {
+      toast.error(
+        notice === "low"
+          ? `This plan is below the ${country.currency} minimum of ${country.min.toLocaleString()}`
+          : `This plan is above the ${country.currency} maximum of ${country.max.toLocaleString()}`,
+      );
       return;
     }
     setPhase("waiting");
     setStatus("Sending the payment request to your phone…");
     try {
-      const tx = await createPaymentIntent({ userId: user.id, plan, method: "mobile_money" });
+      const tx = await createPaymentIntent({
+        userId: user.id,
+        plan,
+        method: "mobile_money",
+        currency: country.currency,
+        amount: localPrice,
+      });
       liveTx.current = await startMobileMoney(tx, phone);
       setStatus("Approve the prompt on your phone to finish.");
+
     } catch (err) {
       setPhase("failed");
       setStatus(err instanceof Error ? err.message : "Could not start the payment.");
