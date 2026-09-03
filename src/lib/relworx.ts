@@ -1,28 +1,52 @@
 import { cachedSetting } from "./app-settings";
+import {
+  COUNTRIES,
+  DEFAULT_COUNTRY,
+  countryByCurrency,
+  countryFromPhone,
+  formatAmount,
+  isValidFor,
+  normalizeFor,
+} from "./countries";
 
 export type PaymentSettings = { backend_url?: string };
 
-export const DEFAULT_PAYMENT_BACKEND = "https://function-bun-production-038e6.up.railway.app";
+export const DEFAULT_PAYMENT_BACKEND = "https://function-bun-production-e268.up.railway.app";
+
+/** Older Railway deployments that must never be used again. */
+const RETIRED_BACKENDS = [
+  "function-bun-production-038e6",
+  "function-bun-production-8264",
+  "function-bun-production-9a7c",
+];
 
 export function paymentBackend() {
   const saved = cachedSetting<PaymentSettings>("payment", {});
-  return (saved.backend_url || DEFAULT_PAYMENT_BACKEND).trim().replace(/\/+$/, "");
+  const url = (saved.backend_url || "").trim().replace(/\/+$/, "");
+  if (!url || RETIRED_BACKENDS.some((r) => url.includes(r))) return DEFAULT_PAYMENT_BACKEND;
+  return url;
 }
 
 export const CURRENCY_CODE = "UGX";
 export const CURRENCY_LABEL = "UG SHS";
-export const formatMoney = (n: number) =>
-  `${CURRENCY_LABEL} ${Number(n || 0).toLocaleString("en-UG", { maximumFractionDigits: 0 })}`;
+export const formatMoney = (n: number, currency = CURRENCY_CODE) =>
+  currency === "UGX"
+    ? `${CURRENCY_LABEL} ${Number(n || 0).toLocaleString("en-UG", { maximumFractionDigits: 0 })}`
+    : formatAmount(Number(n || 0), currency);
 
+/** Normalises a number, auto-detecting the country when possible. */
 export function normalizeMsisdn(input: string) {
-  const d = (input ?? "").replace(/[^0-9]/g, "");
-  if (d.startsWith("256")) return `+${d}`;
-  if (d.startsWith("0")) return `+256${d.slice(1)}`;
-  if (d.length === 9) return `+256${d}`;
-  return `+${d}`;
+  const digits = (input ?? "").replace(/[^0-9]/g, "");
+  const detected = countryFromPhone(digits);
+  return normalizeFor(input, detected ?? DEFAULT_COUNTRY);
 }
 
-export const isValidMsisdn = (v: string) => /^\+256[37]\d{8}$/.test(normalizeMsisdn(v));
+export const isValidMsisdn = (v: string) => {
+  const detected = countryFromPhone((v ?? "").replace(/[^0-9]/g, ""));
+  if (detected) return isValidFor(v, detected);
+  return isValidFor(v, DEFAULT_COUNTRY);
+};
+
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${paymentBackend()}${path}`, {
