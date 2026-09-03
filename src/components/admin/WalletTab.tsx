@@ -56,7 +56,7 @@ export function WalletTab() {
   const q = useQuery({ queryKey: ["admin-wallet"], queryFn: loadWallet });
   const [openTx, setOpenTx] = useState<MergedTx | null>(null);
   const [wdOpen, setWdOpen] = useState(false);
-  const [form, setForm] = useState({ phone: "", amount: "", reason: "" });
+  const [form, setForm] = useState({ phone: "", amount: "", reason: "", currency: "UGX" });
 
   const paidOut = (q.data?.wd ?? []).filter((w) => w.status !== "rejected").reduce((s, w) => s + Number(w.amount), 0);
   // The withdrawable amount is whatever Relworx actually holds; the ledger
@@ -67,6 +67,20 @@ export function WalletTab() {
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
+
+  /** Real live balance for every supported country. */
+  const balances = useQuery({
+    queryKey: ["relworx-balances"],
+    queryFn: allWalletBalances,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+
+  const payoutCountry = countryByCurrency(form.currency);
+  const payoutBalance =
+    balances.data?.find((b) => b.currency === form.currency)?.balance ?? null;
+
+
 
 
   const profileOf = (uid: string | null) => (q.data?.profiles ?? []).find((p) => p.id === uid);
