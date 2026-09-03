@@ -785,10 +785,17 @@ export async function fetchPlayback(
   const se = season > 0 ? season : 0;
   const ep = se > 0 ? Math.max(1, episode) : 0;
   const query = `subjectId=${subjectId}&se=${se}&ep=${ep}`;
-  const data = await request("GET", `/wefeed-mobile-bff/subject-api/play-info?${query}`).catch(
-    () => null as any,
-  );
+  // play-info/v2 (APK 4.0.02.0831.02) with the v1 path as a fallback.
+  const data = await request("GET", `${API_PREFIX}/subject-api/play-info/v2?${query}`)
+    .then((res: any) => (Array.isArray(res?.streams) && res.streams.length ? res : null))
+    .catch(() => null as any)
+    .then(
+      async (res: any) =>
+        res ??
+        (await request("GET", `${API_PREFIX}/subject-api/play-info?${query}`).catch(() => null as any)),
+    );
   const stream = Array.isArray(data?.streams) ? data.streams[0] : null;
+
 
   const cookie: string = stream?.signCookie ?? "";
   if (!cookie) return null;
