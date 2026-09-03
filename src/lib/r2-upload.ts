@@ -119,7 +119,40 @@ export async function uploadToR2(
   const totalParts = Math.ceil(file.size / PART_SIZE);
   const loadedPerPart = new Array<number>(totalParts).fill(0);
   const etags = new Array<string>(totalParts);
-  const report = () => emit(loadedPerPart.reduce((a, b) => a + b, 0));
+  let lastReport = 0;
+  const report = (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastReport < 120) return;
+    lastReport = now;
+    emit(loadedPerPart.reduce((a, b) => a + b, 0));
+  };
+
+  // Sign every part up front in a couple of batched calls instead of one
+  // round-trip per 16 MB chunk — that alone removes most of the upload wait.
+  const signed = new Map<number, string>();
+  for (let from = 1; from <= totalParts; from += SIGN_BATCH) {
+    const partNumbers = Array.from(
+      { length: Math.min(SIGN_BATCH, totalParts - from + 1) },
+      (_, i) => from + i,
+    );
+    const { urls } = await signer<{ urls: { partNumber: number; url: string }[] }>("/uploads/sign", {
+      key,
+      uploadId,
+      partNumbers,
+    });
+    urls.forEach((u) => signed.set(u.partNumber, u.url));
+  }
+
+  const signOne = async (partNumber: number) => {
+    const { urls } = await signer<{ urls: { partNumber: number; url: string }[] }>("/uploads/sign", {
+      key,
+      uploadId,
+      partNumbers: [partNumber],
+    });
+    const url = urls.find((u) => u.partNumber === partNumber)?.url;
+    if (url) signed.set(partNumber, url);
+    return url;
+  };
 
   let next = 0;
   const worker = async () => {
@@ -129,16 +162,11 @@ export async function uploadToR2(
       const partNumber = index + 1;
       const blob = file.slice(index * PART_SIZE, Math.min((index + 1) * PART_SIZE, file.size));
 
-      // Each part re-signs and re-sends itself until it lands, so a dropped
-      // connection only rewinds that one 8 MB chunk — never the whole upload.
+      // Each part re-sends (re-signing only if needed) until it lands, so a
+      // dropped connection only rewinds that one chunk — never the whole file.
       await withRetry(
         async () => {
-          const { urls } = await signer<{ urls: { partNumber: number; url: string }[] }>("/uploads/sign", {
-            key,
-            uploadId,
-            partNumbers: [partNumber],
-          });
-          const target = urls.find((u) => u.partNumber === partNumber)?.url;
+          const target = signed.get(partNumber) ?? (await signOne(partNumber));
           if (!target) throw new Error("Signer returned no URL for this part");
           const etag = await put(target, blob, (loaded) => {
             loadedPerPart[index] = loaded;
