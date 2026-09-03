@@ -106,6 +106,7 @@ export function catalogDownloadUrl(
   episode: number,
   resolution: number,
   filename: string,
+  resourceId?: string,
 ) {
   const params = new URLSearchParams({
     subjectId,
@@ -113,6 +114,7 @@ export function catalogDownloadUrl(
     ep: String(season > 0 ? Math.max(1, episode) : 0),
     res: String(resolution || 0),
     dl: slug(filename),
+    ...(resourceId ? { resourceId } : {}),
   });
   return `/api/public/movie?${params.toString()}`;
 }
