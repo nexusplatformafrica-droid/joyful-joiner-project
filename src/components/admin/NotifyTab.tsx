@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Search, Send, MessageCircle, CheckCheck, ExternalLink } from "lucide-react";
+import { Search, Send, MessageCircle, CheckCheck, ExternalLink, Users } from "lucide-react";
 import { db as supabase } from "@/lib/db";
 import {
   callmebotKeyFor,
