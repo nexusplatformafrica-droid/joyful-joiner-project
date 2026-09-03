@@ -44,12 +44,32 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+/**
+ * Public HTML pages are identical for every visitor (all personalised data is
+ * fetched client-side), so let the CDN serve them from its own cache instead
+ * of hitting our serverless function on every request. This is what keeps
+ * origin transfer/invocations near zero on free hosting.
+ */
+function withEdgeCache(request: Request, response: Response): Response {
+  if (request.method !== "GET") return response;
+  if (response.status !== 200) return response;
+  if (response.headers.has("cache-control")) return response;
+  const url = new URL(request.url);
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/_serverFn")) return response;
+  if (url.pathname.startsWith("/admin")) return response;
+  if (/^\/(watch|luo|luganda)\/[^/]+$/.test(url.pathname)) return response;
+  if (!(response.headers.get("content-type") ?? "").includes("text/html")) return response;
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "public, max-age=0, s-maxage=600, stale-while-revalidate=86400");
+  return new Response(response.body, { status: response.status, headers });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return withEdgeCache(request, await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {
