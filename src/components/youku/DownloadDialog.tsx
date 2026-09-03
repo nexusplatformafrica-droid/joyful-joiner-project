@@ -68,7 +68,7 @@ export function DownloadDialog({
 
 
 
-    const startManagedDownload = (source: StreamSource, filename: string) => {
+  const startManagedDownload = (source: StreamSource, filename: string) => {
     if (!requireSubscription()) {
       onClose();
       return;
