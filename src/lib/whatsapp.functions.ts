@@ -47,6 +47,52 @@ export type SendResult = {
 
 type Cloud = { token: string; phoneId: string; template?: string | undefined; lang: string } | null;
 type Green = { apiUrl: string; idInstance: string; apiToken: string } | null;
+type Gateway = { url: string; token?: string | undefined; session: string } | null;
+
+/**
+ * Self-hosted / unofficial HTTP gateway (WAHA, wppconnect, Baileys, UltraMsg,
+ * Wassenger…). Truly unlimited and free when you host it yourself; recipients
+ * never activate anything. Configure WHATSAPP_GATEWAY_URL (+ optional
+ * WHATSAPP_GATEWAY_TOKEN, WHATSAPP_GATEWAY_SESSION) and it becomes the primary
+ * sender. The payload shape is auto-detected from the URL.
+ */
+async function sendGateway(gw: NonNullable<Gateway>, to: string, message: string): Promise<SendResult> {
+  const url = gw.url;
+  const isUltra = /ultramsg\.com/i.test(url);
+  const isWassenger = /wassenger\.com/i.test(url);
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  let body: Record<string, unknown>;
+
+  if (isUltra) {
+    // UltraMsg: token goes in the body
+    body = { token: gw.token ?? "", to: `+${to}`, body: message };
+  } else if (isWassenger) {
+    if (gw.token) headers["Token"] = gw.token;
+    body = { phone: `+${to}`, message };
+  } else {
+    // WAHA / wppconnect / Baileys style
+    if (gw.token) headers["Authorization"] = `Bearer ${gw.token}`;
+    headers["X-Api-Key"] = gw.token ?? "";
+    body = { session: gw.session, chatId: `${to}@c.us`, phone: to, text: message, message };
+  }
+
+  try {
+    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+    const text = (await res.text()).slice(0, 400);
+    if (!res.ok || /"?error"?\s*:/i.test(text)) {
+      return { phone: to, ok: false, status: "failed", detail: text || `HTTP ${res.status}`, fallback: waLink(to, message) };
+    }
+    return { phone: to, ok: true, status: "sent" };
+  } catch (err) {
+    return {
+      phone: to,
+      ok: false,
+      status: "failed",
+      detail: err instanceof Error ? err.message : "network error",
+      fallback: waLink(to, message),
+    };
+  }
+}
 
 /**
  * Green-API — a free WhatsApp gateway driven by YOUR own WhatsApp number
@@ -123,8 +169,18 @@ async function sendCloud(cloud: NonNullable<Cloud>, to: string, message: string)
   }
 }
 
-async function sendOne(phone: string, message: string, cloud: Cloud, green: Green): Promise<SendResult> {
+async function sendOne(
+  phone: string,
+  message: string,
+  cloud: Cloud,
+  green: Green,
+  gateway: Gateway,
+): Promise<SendResult> {
   const to = normalisePhone(phone);
+  if (gateway) {
+    const r = await sendGateway(gateway, to, message);
+    if (r.ok) return r;
+  }
   if (green) {
     const r = await sendGreen(green, to, message);
     if (r.ok) return r;
@@ -186,17 +242,34 @@ export const sendWhatsappBlast = createServerFn({ method: "POST" })
           }
         : null;
 
+    const gwUrl = process.env["WHATSAPP_GATEWAY_URL"];
+    const gateway: Gateway = gwUrl
+      ? {
+          url: gwUrl,
+          token: process.env["WHATSAPP_GATEWAY_TOKEN"] || undefined,
+          session: process.env["WHATSAPP_GATEWAY_SESSION"] || "default",
+        }
+      : null;
+
     const results: SendResult[] = [];
-    const fast = !!(green || cloud);
+    const fast = !!(gateway || green || cloud);
     const size = fast ? 5 : 4;
     for (let i = 0; i < data.recipients.length; i += size) {
       const batch = data.recipients.slice(i, i + size);
-      results.push(...(await Promise.all(batch.map((r) => sendOne(r.phone, r.message, cloud, green)))));
+      results.push(
+        ...(await Promise.all(batch.map((r) => sendOne(r.phone, r.message, cloud, green, gateway)))),
+      );
       if (i + size < data.recipients.length) await new Promise((r) => setTimeout(r, fast ? 400 : 900));
     }
     return {
       results,
-      provider: green ? ("green" as const) : cloud ? ("cloud" as const) : ("callmebot" as const),
+      provider: gateway
+        ? ("gateway" as const)
+        : green
+          ? ("green" as const)
+          : cloud
+            ? ("cloud" as const)
+            : ("callmebot" as const),
     };
   });
 
