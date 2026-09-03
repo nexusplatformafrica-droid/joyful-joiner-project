@@ -198,12 +198,25 @@ export function NotifyTab() {
           <button
             type="button"
             disabled={selected.length === 0 || blast.isPending}
-            onClick={() => blast.mutate()}
+            onClick={() => blast.mutate(undefined)}
             className={`${goldBtn} mt-4 flex w-full items-center justify-center gap-2`}
           >
             <Send className="size-4" />
             {blast.isPending ? "Sending…" : `Send to ${selected.length} user${selected.length === 1 ? "" : "s"}`}
           </button>
+
+          <button
+            type="button"
+            disabled={blast.isPending || (people.data ?? []).length === 0}
+            onClick={sendToEveryone}
+            className={`${ghostBtn} mt-2 flex w-full items-center justify-center gap-2`}
+          >
+            <Users className="size-4" />
+            {blast.isPending
+              ? "Sending…"
+              : `Send to all ${(people.data ?? []).length} users now`}
+          </button>
+
         </Panel>
 
         {results.length > 0 && (
