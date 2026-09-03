@@ -88,6 +88,46 @@ export function NotifyTab() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Serverless: runs in this browser only, driving WhatsApp Web tab by tab.
+  const runBrowser = (list: Row[]) => {
+    if (list.length === 0) {
+      toast.error("No users with a phone number yet");
+      return;
+    }
+    runRef.current?.stop();
+    setResults([]);
+    setProgress({ i: 0, total: list.length });
+    try {
+      const handle = startBrowserBlast(
+        list.map((u) => ({ phone: u.phone!, message: render(u) })),
+        Math.max(2, gap) * 1000,
+        (e) => setProgress({ i: e.done ? e.total : e.index + 1, total: e.total }),
+      );
+      runRef.current = handle;
+      handle.promise
+        .then((n) => {
+          toast.success(`Opened ${n} chat${n === 1 ? "" : "s"} in WhatsApp Web`);
+          setResults(
+            list.map((u) => ({
+              phone: normalisePhone(u.phone ?? ""),
+              ok: true,
+              status: "sent" as const,
+            })),
+          );
+        })
+        .catch((err: Error) => toast.error(err.message))
+        .finally(() => setProgress(null));
+    } catch (err) {
+      setProgress(null);
+      toast.error(err instanceof Error ? err.message : "Could not start");
+    }
+  };
+
+  const stopBrowser = () => {
+    runRef.current?.stop();
+    setProgress(null);
+  };
+
   // One click, no confirmation: fires to every user with a phone number.
   const sendToEveryone = () => {
     const all = people.data ?? [];
@@ -96,8 +136,10 @@ export function NotifyTab() {
       return;
     }
     setPicked(Object.fromEntries(all.map((u) => [u.id, true])));
-    blast.mutate(all);
+    if (serverless) runBrowser(all);
+    else blast.mutate(all);
   };
+
 
 
   return (
