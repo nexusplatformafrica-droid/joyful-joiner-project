@@ -8,13 +8,47 @@ type Tile = {
   language: LuoLanguage;
   /** Prefer a poster whose VJ field matches this needle, when present. */
   vj?: string;
+  /** Per-tile gradient: [border, overlay]. */
+  ring: string;
+  overlay: string;
+  glow: string;
 };
 
 const TILES: Tile[] = [
-  { label: "LUO MOVIES", to: "/luo", language: "luo" },
-  { label: "LUGANDA MOVIES", to: "/luganda", language: "luganda" },
-  { label: "VJ SENIOR PAUL", to: "/luo", language: "luo", vj: "paul" },
-  { label: "VJ JUNIOR", to: "/luganda", language: "luganda", vj: "junior" },
+  {
+    label: "LUO MOVIES",
+    to: "/luo",
+    language: "luo",
+    ring: "from-amber-400 via-orange-500 to-rose-500",
+    overlay: "from-amber-950/90 via-orange-950/50 to-transparent",
+    glow: "group-hover:shadow-[0_8px_30px_-6px_rgba(249,115,22,0.45)]",
+  },
+  {
+    label: "LUGANDA MOVIES",
+    to: "/luganda",
+    language: "luganda",
+    ring: "from-emerald-400 via-teal-500 to-cyan-500",
+    overlay: "from-emerald-950/90 via-teal-950/50 to-transparent",
+    glow: "group-hover:shadow-[0_8px_30px_-6px_rgba(20,184,166,0.45)]",
+  },
+  {
+    label: "VJ SENIOR PAUL",
+    to: "/luo",
+    language: "luo",
+    vj: "paul",
+    ring: "from-fuchsia-400 via-purple-500 to-indigo-500",
+    overlay: "from-purple-950/90 via-fuchsia-950/50 to-transparent",
+    glow: "group-hover:shadow-[0_8px_30px_-6px_rgba(168,85,247,0.45)]",
+  },
+  {
+    label: "VJ JUNIOR",
+    to: "/luganda",
+    language: "luganda",
+    vj: "junior",
+    ring: "from-sky-400 via-blue-500 to-violet-500",
+    overlay: "from-blue-950/90 via-sky-950/50 to-transparent",
+    glow: "group-hover:shadow-[0_8px_30px_-6px_rgba(59,130,246,0.45)]",
+  },
 ];
 
 /**
@@ -23,12 +57,12 @@ const TILES: Tile[] = [
  */
 export function VjRail() {
   const luo = useQuery({
-    queryKey: ["luo-library", "luo"],
+    queryKey: ["luo-titles", "luo"],
     queryFn: () => listLuoTitles("luo"),
     staleTime: 5 * 60 * 1000,
   });
   const luganda = useQuery({
-    queryKey: ["luo-library", "luganda"],
+    queryKey: ["luo-titles", "luganda"],
     queryFn: () => listLuoTitles("luganda"),
     staleTime: 5 * 60 * 1000,
   });
@@ -45,31 +79,38 @@ export function VjRail() {
   };
 
   return (
-    <nav aria-label="Browse translated movies" className="scrollbar-none -mx-0 flex gap-2 overflow-x-auto pb-1 pr-3 sm:gap-3">
+    <nav
+      aria-label="Browse translated movies"
+      className="scrollbar-none flex gap-2 overflow-x-auto px-0.5 pb-1 pt-1.5 pr-3 sm:gap-3"
+    >
       {TILES.map((tile, i) => {
         const art = pick(tile, i);
         return (
-          <Link
+          <div
             key={tile.label}
-            to={tile.to}
-            className="group relative h-[62px] w-[128px] shrink-0 overflow-hidden rounded-xl ring-1 ring-border transition-transform duration-200 hover:-translate-y-0.5 hover:ring-brand sm:h-[84px] sm:w-[190px] sm:rounded-2xl"
+            className={`shrink-0 rounded-[14px] bg-gradient-to-br p-[1.5px] transition-shadow duration-300 sm:rounded-[18px] ${tile.ring} ${tile.glow}`}
           >
-            {art ? (
-              <img
-                src={art}
-                alt=""
-                loading="eager"
-                decoding="async"
-                className="absolute inset-0 size-full object-cover opacity-70 transition-transform duration-500 group-hover:scale-105"
-              />
-            ) : (
-              <div className="absolute inset-0 bg-card" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/60 to-background/10" />
-            <span className="absolute inset-0 flex items-center px-3 text-[11px] font-black uppercase leading-tight tracking-wide text-foreground drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] sm:px-4 sm:text-[15px]">
-              {tile.label}
-            </span>
-          </Link>
+            <Link
+              to={tile.to}
+              className="group relative block h-[64px] w-[132px] overflow-hidden rounded-[12.5px] sm:h-[88px] sm:w-[196px] sm:rounded-[16.5px]"
+            >
+              {art ? (
+                <img
+                  src={art}
+                  alt=""
+                  loading="eager"
+                  decoding="async"
+                  className="absolute inset-0 size-full object-cover opacity-80 transition-transform duration-500 group-hover:scale-105"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-card" />
+              )}
+              <div className={`absolute inset-0 bg-gradient-to-r ${tile.overlay}`} />
+              <span className="absolute inset-0 flex items-center px-3 text-[11px] font-black uppercase leading-tight tracking-wide text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] sm:px-4 sm:text-[15px]">
+                {tile.label}
+              </span>
+            </Link>
+          </div>
         );
       })}
     </nav>
