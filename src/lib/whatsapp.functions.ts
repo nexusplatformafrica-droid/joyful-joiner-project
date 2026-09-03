@@ -169,8 +169,18 @@ async function sendCloud(cloud: NonNullable<Cloud>, to: string, message: string)
   }
 }
 
-async function sendOne(phone: string, message: string, cloud: Cloud, green: Green): Promise<SendResult> {
+async function sendOne(
+  phone: string,
+  message: string,
+  cloud: Cloud,
+  green: Green,
+  gateway: Gateway,
+): Promise<SendResult> {
   const to = normalisePhone(phone);
+  if (gateway) {
+    const r = await sendGateway(gateway, to, message);
+    if (r.ok) return r;
+  }
   if (green) {
     const r = await sendGreen(green, to, message);
     if (r.ok) return r;
