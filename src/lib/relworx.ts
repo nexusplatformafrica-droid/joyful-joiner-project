@@ -95,7 +95,12 @@ export const relworx = {
   requestStatus: (internalReference: string) =>
     call<any>(`/api/request-status?internal_reference=${encodeURIComponent(internalReference)}`),
   transactions: () => call<any>("/api/transactions"),
+  detectPhone: (msisdn: string) =>
+    call<any>("/api/detect-phone", { method: "POST", body: JSON.stringify({ msisdn }) }),
+  supportedCountries: () => call<any>("/api/supported-countries"),
+  supportedCurrencies: () => call<any>("/api/supported-currencies"),
 };
+
 
 const SUCCESS = /^(success|successful|completed|complete|paid)$/i;
 const FAILED = /^(failed|failure|cancelled|canceled|declined|error|rejected|expired)$/i;
