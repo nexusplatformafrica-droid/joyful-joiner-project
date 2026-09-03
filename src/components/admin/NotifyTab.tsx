@@ -49,6 +49,13 @@ export function NotifyTab() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState(TEMPLATES[0]!.body);
   const [results, setResults] = useState<SendResult[]>([]);
+  const [serverless, setServerless] = useState(true);
+  const [gap, setGap] = useState(8);
+  const [progress, setProgress] = useState<{ i: number; total: number } | null>(null);
+  const runRef = useRef<BrowserBlastHandle | null>(null);
+  useEffect(() => () => runRef.current?.stop(), []);
+
+
 
   const rows = useMemo(() => {
     const list = people.data ?? [];
