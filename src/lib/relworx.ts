@@ -276,5 +276,3 @@ export async function allWalletBalances(): Promise<CurrencyBalance[]> {
     })),
   );
 }
-
-}
