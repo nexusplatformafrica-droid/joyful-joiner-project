@@ -123,12 +123,17 @@ async function sendCloud(cloud: NonNullable<Cloud>, to: string, message: string)
   }
 }
 
-async function sendOne(phone: string, message: string, cloud: Cloud): Promise<SendResult> {
+async function sendOne(phone: string, message: string, cloud: Cloud, green: Green): Promise<SendResult> {
   const to = normalisePhone(phone);
+  if (green) {
+    const r = await sendGreen(green, to, message);
+    if (r.ok) return r;
+  }
   if (cloud) {
     const r = await sendCloud(cloud, to, message);
     if (r.ok) return r;
   }
+
   const apikey = CALLMEBOT_KEYS[to];
   if (!apikey) {
     return { phone: to, ok: false, status: "no-key", fallback: waLink(to, message) };
