@@ -9,6 +9,7 @@ import {
 } from "@/lib/download";
 import { useSubscription } from "@/hooks/useSubscription";
 import { downloadCatalogMovie, type DownloadProgress } from "@/lib/catalog-download";
+import { startDownload, finishDownload } from "@/lib/moviebox";
 import { toast } from "sonner";
 
 type StreamSource = {
@@ -65,6 +66,10 @@ export function DownloadDialog({
     const controller = new AbortController();
     abort.current = controller;
     setJob({ id: source.id, progress: null });
+    // Provider download lifecycle: authorize before the transfer, confirm only
+    // after every byte landed (APK 4.0.02.0831.02).
+    const lifecycleEpisode = season > 0 ? Math.max(1, episode) : 0;
+    void startDownload(catalogId, source.id, lifecycleEpisode);
     try {
       await downloadCatalogMovie({
         subjectId: catalogId,
@@ -75,6 +80,7 @@ export function DownloadDialog({
         signal: controller.signal,
         onProgress: (progress) => setJob({ id: source.id, progress }),
       });
+      void finishDownload(catalogId, source.id, lifecycleEpisode);
       toast.success("Download saved");
       onClose();
     } catch (err) {
