@@ -184,6 +184,8 @@ export function renderNotifyEmail(opts: {
           <p style="font:400 15px/1.65 Helvetica,Arial,sans-serif;color:#c9ccd6;margin:0;">${opts.name ? `Hi ${esc(opts.name)},<br/>` : ""}${bodyHtml}</p>
           ${card}
           ${recs.length ? recRow(recs) : ""}
+          ${socialBlock(c)}
+
           <p style="font:400 12px/1.6 Helvetica,Arial,sans-serif;color:#7d8190;margin:28px 0 0;border-top:1px solid rgba(255,255,255,.08);padding-top:18px;">
             With love,<br/><b style="color:${GOLD};">— The Luo Film Team</b><br/><br/>
             You get this because you have an account on <a href="${SITE_URL}" style="color:${GOLD};text-decoration:none;">LUOFILM.SITE</a>.
