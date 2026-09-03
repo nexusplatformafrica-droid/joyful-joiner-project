@@ -64,6 +64,15 @@ export function SubscribeModal({
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState("");
   const [qr, setQr] = useState("");
+  const [showScan, setShowScan] = useState(false);
+  const [countryCode, setCountryCode] = useState(() => {
+    try {
+      return localStorage.getItem(COUNTRY_KEY) ?? "UG";
+    } catch {
+      return "UG";
+    }
+  });
+  const country = countryByCode(countryCode);
   const settings = useQuery({ queryKey: ["plans"], queryFn: getPlans });
   const source = settings.data ?? DEFAULT_PLANS;
 
@@ -90,11 +99,26 @@ export function SubscribeModal({
     tier,
     devices: Number(raw.devices ?? 1) || 1,
   };
+  /** Same plan, priced in the buyer's own currency. */
+  const localPrice = convertPrice(plan.price, country);
+  const notice = priceNotice(localPrice, country);
   const [failOpen, setFailOpen] = useState(false);
+
+  const chooseCountry = (code: string) => {
+    setCountryCode(code);
+    setPhase("idle");
+    try {
+      localStorage.setItem(COUNTRY_KEY, code);
+    } catch {
+      /* ignore */
+    }
+  };
 
   useEffect(() => {
     if (!profile?.phone || phone) return;
     setPhone(String(profile.phone));
+    const detected = countryFromPhone(String(profile.phone));
+    if (detected) setCountryCode(detected.code);
   }, [profile, phone]);
 
   /** Mints a scannable pay-on-another-device link for the selected plan. */
@@ -102,7 +126,13 @@ export function SubscribeModal({
     if (!user || !open) return;
     try {
       if (linkTx.current) await expireTx(String(linkTx.current.id)).catch(() => {});
-      const tx = await createPaymentIntent({ userId: user.id, plan, method: "link" });
+      const tx = await createPaymentIntent({
+        userId: user.id,
+        plan,
+        method: "link",
+        currency: country.currency,
+        amount: localPrice,
+      });
       linkTx.current = tx;
       const url = `${window.location.origin}/pay/${tx.id}`;
       setQr(await QRCode.toDataURL(url, { margin: 1, width: 240 }));
@@ -111,7 +141,8 @@ export function SubscribeModal({
     }
     // plan identity is what matters, not the object reference
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, open, plan.id, plan.price]);
+  }, [user, open, plan.id, plan.price, country.currency, localPrice]);
+
 
   useEffect(() => {
     if (open && phase === "idle") void mintLink();
