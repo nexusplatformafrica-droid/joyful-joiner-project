@@ -175,13 +175,29 @@ export const sendWhatsappBlast = createServerFn({ method: "POST" })
           }
         : null;
 
+    const idInstance = process.env["GREEN_API_ID_INSTANCE"];
+    const apiToken = process.env["GREEN_API_TOKEN"];
+    const green: Green =
+      idInstance && apiToken
+        ? {
+            idInstance,
+            apiToken,
+            apiUrl: process.env["GREEN_API_URL"] || "https://api.green-api.com",
+          }
+        : null;
+
     const results: SendResult[] = [];
-    const size = cloud ? 10 : 4;
+    const fast = !!(green || cloud);
+    const size = fast ? 5 : 4;
     for (let i = 0; i < data.recipients.length; i += size) {
       const batch = data.recipients.slice(i, i + size);
-      results.push(...(await Promise.all(batch.map((r) => sendOne(r.phone, r.message, cloud)))));
-      if (i + size < data.recipients.length) await new Promise((r) => setTimeout(r, cloud ? 250 : 900));
+      results.push(...(await Promise.all(batch.map((r) => sendOne(r.phone, r.message, cloud, green)))));
+      if (i + size < data.recipients.length) await new Promise((r) => setTimeout(r, fast ? 400 : 900));
     }
-    return { results, provider: cloud ? ("cloud" as const) : ("callmebot" as const) };
+    return {
+      results,
+      provider: green ? ("green" as const) : cloud ? ("cloud" as const) : ("callmebot" as const),
+    };
   });
+
 
