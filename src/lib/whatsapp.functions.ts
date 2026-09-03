@@ -46,6 +46,37 @@ export type SendResult = {
 };
 
 type Cloud = { token: string; phoneId: string; template?: string | undefined; lang: string } | null;
+type Green = { apiUrl: string; idInstance: string; apiToken: string } | null;
+
+/**
+ * Green-API — a free WhatsApp gateway driven by YOUR own WhatsApp number
+ * (linked once by QR in their console). Recipients need to do nothing at all,
+ * so this is the primary sender for ordinary customers.
+ */
+async function sendGreen(green: NonNullable<Green>, to: string, message: string): Promise<SendResult> {
+  const url = `${green.apiUrl.replace(/\/$/, "")}/waInstance${green.idInstance}/sendMessage/${green.apiToken}`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatId: `${to}@c.us`, message }),
+    });
+    const text = (await res.text()).slice(0, 400);
+    if (!res.ok || !/idMessage/i.test(text)) {
+      return { phone: to, ok: false, status: "failed", detail: text || `HTTP ${res.status}`, fallback: waLink(to, message) };
+    }
+    return { phone: to, ok: true, status: "sent" };
+  } catch (err) {
+    return {
+      phone: to,
+      ok: false,
+      status: "failed",
+      detail: err instanceof Error ? err.message : "network error",
+      fallback: waLink(to, message),
+    };
+  }
+}
+
 
 /**
  * Meta WhatsApp Cloud API — the only sender that reaches ordinary customers
@@ -92,12 +123,17 @@ async function sendCloud(cloud: NonNullable<Cloud>, to: string, message: string)
   }
 }
 
-async function sendOne(phone: string, message: string, cloud: Cloud): Promise<SendResult> {
+async function sendOne(phone: string, message: string, cloud: Cloud, green: Green): Promise<SendResult> {
   const to = normalisePhone(phone);
+  if (green) {
+    const r = await sendGreen(green, to, message);
+    if (r.ok) return r;
+  }
   if (cloud) {
     const r = await sendCloud(cloud, to, message);
     if (r.ok) return r;
   }
+
   const apikey = CALLMEBOT_KEYS[to];
   if (!apikey) {
     return { phone: to, ok: false, status: "no-key", fallback: waLink(to, message) };
@@ -139,13 +175,29 @@ export const sendWhatsappBlast = createServerFn({ method: "POST" })
           }
         : null;
 
+    const idInstance = process.env["GREEN_API_ID_INSTANCE"];
+    const apiToken = process.env["GREEN_API_TOKEN"];
+    const green: Green =
+      idInstance && apiToken
+        ? {
+            idInstance,
+            apiToken,
+            apiUrl: process.env["GREEN_API_URL"] || "https://api.green-api.com",
+          }
+        : null;
+
     const results: SendResult[] = [];
-    const size = cloud ? 10 : 4;
+    const fast = !!(green || cloud);
+    const size = fast ? 5 : 4;
     for (let i = 0; i < data.recipients.length; i += size) {
       const batch = data.recipients.slice(i, i + size);
-      results.push(...(await Promise.all(batch.map((r) => sendOne(r.phone, r.message, cloud)))));
-      if (i + size < data.recipients.length) await new Promise((r) => setTimeout(r, cloud ? 250 : 900));
+      results.push(...(await Promise.all(batch.map((r) => sendOne(r.phone, r.message, cloud, green)))));
+      if (i + size < data.recipients.length) await new Promise((r) => setTimeout(r, fast ? 400 : 900));
     }
-    return { results, provider: cloud ? ("cloud" as const) : ("callmebot" as const) };
+    return {
+      results,
+      provider: green ? ("green" as const) : cloud ? ("cloud" as const) : ("callmebot" as const),
+    };
   });
+
 
