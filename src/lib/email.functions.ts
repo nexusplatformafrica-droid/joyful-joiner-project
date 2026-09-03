@@ -10,7 +10,7 @@ import { z } from "zod";
 
 export const EMAIL_CONFIG = {
   /** Resend API key — https://resend.com (free tier: 3,000 emails/month). */
-  apiKey: "",
+  apiKey: "re_gvdcRb1j_CLuFZKMVHFfQ9sZ8ax8fFBB8",
   /** Verified sender, e.g. "LUOFILM <notify@luofilm.site>". */
   from: "LUOFILM <notify@luofilm.site>",
 };
