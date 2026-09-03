@@ -371,7 +371,12 @@ export function WalletTab() {
           <DialogHeader>
             <DialogTitle className="text-[18px] font-bold">Withdraw money</DialogTitle>
           </DialogHeader>
-          <p className="text-[12px] opacity-65">Available balance: <b>{money(balance)}</b></p>
+          <p className="text-[12px] opacity-65">
+            Available balance:{" "}
+            <b>
+              {payoutBalance == null ? money(balance) : formatAmount(payoutBalance, form.currency)}
+            </b>
+          </p>
           <form
             className="mt-2 space-y-2"
             onSubmit={(e) => {
@@ -379,8 +384,25 @@ export function WalletTab() {
               withdraw.mutate();
             }}
           >
-            <input className={softField} placeholder="Phone number (MoMo / Airtel)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-            <input className={softField} inputMode="numeric" placeholder="Amount (UGX)" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+            <div className="flex flex-wrap gap-1.5">
+              {COUNTRIES.map((c) => (
+                <button
+                  key={c.code}
+                  type="button"
+                  onClick={() => setForm({ ...form, currency: c.currency })}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+                    form.currency === c.currency
+                      ? "bg-[oklch(0.88_0.11_82)] ring-1 ring-black/10"
+                      : "bg-white/70 opacity-70 ring-1 ring-black/5 hover:opacity-100"
+                  }`}
+                >
+                  {c.flag} {c.currency}
+                </button>
+              ))}
+            </div>
+            <input className={softField} placeholder={`Phone number (${payoutCountry.providers.join(" / ")})`} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <input className={softField} inputMode="numeric" placeholder={`Amount (${form.currency})`} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+
             <textarea
               className="min-h-20 w-full rounded-2xl bg-white/70 p-3 text-sm outline-none ring-1 ring-black/5 placeholder:opacity-50 focus:bg-white focus:ring-2 focus:ring-[oklch(0.82_0.1_65)]"
               placeholder="Reason"
