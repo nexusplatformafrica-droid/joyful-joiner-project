@@ -175,11 +175,13 @@ export async function uploadToR2(
           if (!etag) throw new Error("Missing ETag — check R2 CORS ExposeHeaders");
           etags[index] = etag;
           loadedPerPart[index] = blob.size;
-          report();
+          report(true);
         },
         () => {
+          // Force a fresh signature on retry — the old one may have expired.
+          signed.delete(partNumber);
           loadedPerPart[index] = 0;
-          report();
+          report(true);
         },
       );
     }
