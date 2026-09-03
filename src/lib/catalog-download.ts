@@ -41,35 +41,105 @@ type Writer = {
   abort: () => Promise<void>;
 };
 
-async function createWriter(filename: string): Promise<Writer> {
-  const picker = (window as unknown as {
-    showSaveFilePicker?: (init: unknown) => Promise<{
-      createWritable: () => Promise<{
-        write: (chunk: Uint8Array) => Promise<void>;
-        close: () => Promise<void>;
-        abort: () => Promise<void>;
-      }>;
-    }>;
-  }).showSaveFilePicker;
+async function serviceWorkerWriter(filename: string): Promise<Writer | null> {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return null;
+  if (!window.isSecureContext) return null;
+  try {
+    const registration = await navigator.serviceWorker.register("/download-sw.js", { scope: "/" });
+    await navigator.serviceWorker.ready;
+    const worker =
+      navigator.serviceWorker.controller ??
+      registration.active ??
+      (await new Promise<ServiceWorker | null>((resolve) => {
+        const timer = setTimeout(() => resolve(null), 4000);
+        navigator.serviceWorker.addEventListener(
+          "controllerchange",
+          () => {
+            clearTimeout(timer);
+            resolve(navigator.serviceWorker.controller);
+          },
+          { once: true },
+        );
+      }));
+    if (!worker) return null;
 
-  if (typeof picker === "function") {
-    try {
-      const handle = await picker({
-        suggestedName: filename,
-        types: [{ description: "Video", accept: { "video/mp4": [".mp4"] } }],
-      });
-      const stream = await handle.createWritable();
-      return {
-        write: (chunk) => stream.write(chunk),
-        close: () => stream.close(),
-        abort: () => stream.abort().catch(() => undefined),
+    const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    const channel = new MessageChannel();
+    const port = channel.port1;
+
+    let credits = 0;
+    let waiter: (() => void) | null = null;
+    let cancelled = false;
+
+    const ready = new Promise<void>((resolve) => {
+      port.onmessage = (event) => {
+        const msg = event.data as { type?: string };
+        if (msg?.type === "ready") resolve();
+        else if (msg?.type === "pull") {
+          credits++;
+          waiter?.();
+          waiter = null;
+        } else if (msg?.type === "cancel") {
+          cancelled = true;
+          waiter?.();
+          waiter = null;
+        }
       };
-    } catch (err) {
-      // User cancelled the save dialog — abort the whole download.
-      if ((err as { name?: string })?.name === "AbortError") throw err;
-      // Anything else: fall through to the blob writer.
-    }
+    });
+
+    port.start();
+    worker.postMessage({ type: "dl-init", id, filename }, [channel.port2]);
+    await Promise.race([ready, new Promise((r) => setTimeout(r, 4000))]);
+
+    // Kick off the download in a hidden iframe: the service worker answers it
+    // with an attachment response, so the browser download manager takes over.
+    const frame = document.createElement("iframe");
+    frame.hidden = true;
+    frame.src = `/__dl/${id}`;
+    document.body.appendChild(frame);
+
+    const awaitCredit = async () => {
+      if (credits > 0 || cancelled) return;
+      await new Promise<void>((resolve) => {
+        waiter = resolve;
+        setTimeout(() => {
+          if (waiter === resolve) {
+            waiter = null;
+            credits++;
+            resolve();
+          }
+        }, 5000);
+      });
+    };
+
+    const cleanup = () => setTimeout(() => frame.remove(), 2000);
+
+    return {
+      write: async (chunk) => {
+        if (cancelled) throw new DOMException("Aborted", "AbortError");
+        await awaitCredit();
+        if (cancelled) throw new DOMException("Aborted", "AbortError");
+        credits = Math.max(0, credits - 1);
+        const copy = chunk.slice();
+        port.postMessage({ type: "chunk", chunk: copy.buffer }, [copy.buffer]);
+      },
+      close: async () => {
+        port.postMessage({ type: "end" });
+        cleanup();
+      },
+      abort: async () => {
+        port.postMessage({ type: "abort" });
+        cleanup();
+      },
+    };
+  } catch {
+    return null;
   }
+}
+
+async function createWriter(filename: string): Promise<Writer> {
+  const streamed = await serviceWorkerWriter(filename);
+  if (streamed) return streamed;
 
   const parts: BlobPart[] = [];
   return {
@@ -94,6 +164,7 @@ async function createWriter(filename: string): Promise<Writer> {
     },
   };
 }
+
 
 async function getBytes(url: string, signal?: AbortSignal, tries = 4): Promise<Uint8Array> {
   let lastError: unknown;
