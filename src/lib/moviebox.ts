@@ -202,6 +202,24 @@ export type CatalogItem = {
   booked?: number | null;
 };
 
+/**
+ * The catalog serves original artwork that can be several megabytes per file.
+ * Its image CDN supports on-the-fly resizing, so request display-sized images
+ * instead. The transformed URL is stable and can stay in the browser/CDN cache.
+ */
+function artworkUrl(value: unknown, width: number): string | null {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    const url = new URL(value);
+    if (url.hostname.endsWith("aoneroom.com") && !url.searchParams.has("x-oss-process")) {
+      url.searchParams.set("x-oss-process", `image/resize,w_${width}/quality,q_82`);
+    }
+    return url.toString();
+  } catch {
+    return value;
+  }
+}
+
 const cleanTitle = (raw: string) =>
   raw
     .replace(/\s*\[[^\]]*\]\s*$/g, "")
@@ -215,8 +233,8 @@ export function toItem(subject: any): CatalogItem | null {
     title: cleanTitle(String(subject.title)),
     type: Number(subject.subjectType) === 2 ? "series" : "movie",
     year: subject.releaseDate ? String(subject.releaseDate).slice(0, 4) : null,
-    poster: subject.cover?.url ?? null,
-    backdrop: subject.stills?.url ?? subject.cover?.url ?? null,
+    poster: artworkUrl(subject.cover?.url, 400),
+    backdrop: artworkUrl(subject.stills?.url ?? subject.cover?.url, 1440),
     rating: subject.imdbRatingValue ? String(subject.imdbRatingValue) : null,
     genre: subject.genre ? String(subject.genre).split(",").slice(0, 3).join(" · ") : null,
     appointmentDate: subject.appointmentDate ? String(subject.appointmentDate) : null,
@@ -241,7 +259,7 @@ export async function fetchHome() {
       for (const banner of block.banner.banners) {
         const item = toItem(banner.subject);
         if (item && banner.image?.url) {
-          hero.push({ ...item, backdrop: banner.image.url });
+          hero.push({ ...item, backdrop: artworkUrl(banner.image.url, 1440) });
         }
       }
       continue;

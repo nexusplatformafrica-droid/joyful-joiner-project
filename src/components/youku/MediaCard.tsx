@@ -1,44 +1,18 @@
-import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Star } from "lucide-react";
 import type { CatalogItem } from "@/lib/moviebox";
-
-/**
- * Posters that already finished decoding this session. Remembering them keeps
- * artwork visible (and skips the fade-in) when a card scrolls back into view
- * or its rail re-renders, instead of flashing an empty placeholder again.
- */
-const loadedPosters = new Set<string>();
-
-/**
- * Warms posters into the browser cache the moment a rail's data arrives, so the
- * artwork is already decoded before the card scrolls into view.
- */
-export function preloadPosters(items: { poster?: string | null }[]) {
-  if (typeof window === "undefined") return;
-  for (const it of items) {
-    const src = it.poster;
-    if (!src || loadedPosters.has(src)) continue;
-    const img = new Image();
-    img.decoding = "async";
-    img.onload = () => loadedPosters.add(src);
-    img.src = src;
-  }
-}
 
 export function MediaCard({
   item,
   block = false,
   rank,
+  priority = false,
 }: {
   item: CatalogItem;
   block?: boolean;
   rank?: number;
+  priority?: boolean;
 }) {
-  const [ready, setReady] = useState(() => !item.poster || loadedPosters.has(item.poster));
-  // Warm this poster immediately, even before the card is scrolled into view.
-  if (item.poster && !loadedPosters.has(item.poster)) preloadPosters([item]);
-
   return (
     <Link
       to="/watch/$id"
@@ -49,22 +23,11 @@ export function MediaCard({
       <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-muted ring-1 ring-border transition-transform duration-200 group-hover:-translate-y-1 group-hover:ring-brand">
         {item.poster ? (
           <img
-            ref={(el) => {
-              // Cached images can finish before React attaches onLoad.
-              if (el?.complete && el.naturalWidth > 0 && !ready) {
-                loadedPosters.add(item.poster!);
-                setReady(true);
-              }
-            }}
             src={item.poster}
             alt={item.title}
-            loading="eager"
-            fetchPriority={ready ? "auto" : "high"}
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
             decoding="async"
-            onLoad={() => {
-              loadedPosters.add(item.poster!);
-              if (!ready) setReady(true);
-            }}
             className="size-full object-cover"
           />
         ) : (

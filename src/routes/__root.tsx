@@ -105,6 +105,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "dns-prefetch", href: "https://valiw.hakunaymatata.com" },
       { rel: "preconnect", href: "https://api7.aoneroom.com", crossOrigin: "anonymous" },
       { rel: "dns-prefetch", href: "https://api7.aoneroom.com" },
+      { rel: "preconnect", href: "https://pbcdn.aoneroom.com", crossOrigin: "anonymous" },
+      { rel: "dns-prefetch", href: "https://pbcdn.aoneroom.com" },
     ],
   }),
 
