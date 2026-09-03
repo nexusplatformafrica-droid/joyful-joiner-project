@@ -221,6 +221,20 @@ export function NotifyTab() {
 
         {results.length > 0 && (
           <Panel title="Delivery">
+            {results.some((r) => !r.ok) && (
+              <button
+                type="button"
+                className={`${ghostBtn} mb-3 flex w-full items-center justify-center gap-2`}
+                onClick={() =>
+                  results
+                    .filter((r) => !r.ok && r.fallback)
+                    .forEach((r, i) => setTimeout(() => window.open(r.fallback!, "_blank"), i * 400))
+                }
+              >
+                <ExternalLink className="size-4" />
+                Open all {results.filter((r) => !r.ok).length} remaining chats
+              </button>
+            )}
             <ul className="space-y-2 text-[12px]">
               {results.map((r) => (
                 <li
@@ -228,6 +242,7 @@ export function NotifyTab() {
                   className="flex items-center gap-2 rounded-2xl bg-white/65 px-3 py-2 ring-1 ring-black/5"
                 >
                   <span className="flex-1 truncate">+{r.phone}</span>
+
                   {r.ok ? (
                     <span className="flex items-center gap-1 font-semibold text-[oklch(0.55_0.14_150)]">
                       <CheckCheck className="size-4" /> Sent
@@ -247,10 +262,10 @@ export function NotifyTab() {
               ))}
             </ul>
             <p className="mt-3 text-[11px] leading-relaxed opacity-60">
-              Automatic sending works for numbers that have activated the free CallMeBot bot. Ask the
-              user to send “I allow callmebot to send me messages” to +34 644 51 95 23 on WhatsApp,
-              then add the returned apikey in <code>src/lib/whatsapp.functions.ts</code>.
+              Fully automatic sending uses the WhatsApp Cloud API once its keys are saved — no action
+              needed from your users. Anything it can’t deliver falls back to one-tap chat links here.
             </p>
+
           </Panel>
         )}
       </div>
