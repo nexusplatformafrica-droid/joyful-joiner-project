@@ -100,13 +100,15 @@ function getIdentity(): Identity {
     ["13", "TQ2A.230405.003"],
   ] as const);
   const model = pick(["23078RKD5C", "2201117TY", "22101316G", "M2012K11AG"] as const);
-  const versionCode = 50040002;
+  // APK 4.0.02.0831.02
+  const versionCode = 50020126;
   identity = {
     userAgent: `com.community.oneroom/${versionCode} (Linux; U; Android ${android[0]}; en_US; ${model}; Build/${android[1]}; Cronet/135.0.7012.3)`,
     clientInfo: JSON.stringify({
       package_name: "com.community.oneroom",
-      version_name: "4.0.02.0825.03",
+      version_name: "4.0.02.0831.02",
       version_code: versionCode,
+
       os: "android",
       os_version: android[0],
       install_ch: "ps",
