@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Search, Send, MessageCircle, CheckCheck, ExternalLink, Users } from "lucide-react";
+import { Search, Send, MessageCircle, CheckCheck, ExternalLink, Users, Zap, Square } from "lucide-react";
 import { db as supabase } from "@/lib/db";
 import {
   callmebotKeyFor,
@@ -11,7 +11,9 @@ import {
   waLink,
   type SendResult,
 } from "@/lib/whatsapp.functions";
+import { startBrowserBlast, type BrowserBlastHandle } from "@/lib/whatsapp-browser";
 import { Empty, Panel, Pill, goldBtn, ghostBtn, softField } from "./ui";
+
 
 type Row = { id: string; display_name: string | null; phone: string | null; email: string | null };
 
@@ -47,6 +49,13 @@ export function NotifyTab() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState(TEMPLATES[0]!.body);
   const [results, setResults] = useState<SendResult[]>([]);
+  const [serverless, setServerless] = useState(true);
+  const [gap, setGap] = useState(8);
+  const [progress, setProgress] = useState<{ i: number; total: number } | null>(null);
+  const runRef = useRef<BrowserBlastHandle | null>(null);
+  useEffect(() => () => runRef.current?.stop(), []);
+
+
 
   const rows = useMemo(() => {
     const list = people.data ?? [];
@@ -79,6 +88,46 @@ export function NotifyTab() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Serverless: runs in this browser only, driving WhatsApp Web tab by tab.
+  const runBrowser = (list: Row[]) => {
+    if (list.length === 0) {
+      toast.error("No users with a phone number yet");
+      return;
+    }
+    runRef.current?.stop();
+    setResults([]);
+    setProgress({ i: 0, total: list.length });
+    try {
+      const handle = startBrowserBlast(
+        list.map((u) => ({ phone: u.phone!, message: render(u) })),
+        Math.max(2, gap) * 1000,
+        (e) => setProgress({ i: e.done ? e.total : e.index + 1, total: e.total }),
+      );
+      runRef.current = handle;
+      handle.promise
+        .then((n) => {
+          toast.success(`Opened ${n} chat${n === 1 ? "" : "s"} in WhatsApp Web`);
+          setResults(
+            list.map((u) => ({
+              phone: normalisePhone(u.phone ?? ""),
+              ok: true,
+              status: "sent" as const,
+            })),
+          );
+        })
+        .catch((err: Error) => toast.error(err.message))
+        .finally(() => setProgress(null));
+    } catch (err) {
+      setProgress(null);
+      toast.error(err instanceof Error ? err.message : "Could not start");
+    }
+  };
+
+  const stopBrowser = () => {
+    runRef.current?.stop();
+    setProgress(null);
+  };
+
   // One click, no confirmation: fires to every user with a phone number.
   const sendToEveryone = () => {
     const all = people.data ?? [];
@@ -87,8 +136,10 @@ export function NotifyTab() {
       return;
     }
     setPicked(Object.fromEntries(all.map((u) => [u.id, true])));
-    blast.mutate(all);
+    if (serverless) runBrowser(all);
+    else blast.mutate(all);
   };
+
 
 
   return (
@@ -195,27 +246,81 @@ export function NotifyTab() {
             </div>
           )}
 
+          <div className="mt-4 rounded-2xl bg-white/65 p-3 ring-1 ring-black/5">
+            <label className="flex cursor-pointer items-center gap-3 text-[13px] font-semibold">
+              <input
+                type="checkbox"
+                checked={serverless}
+                onChange={(e) => setServerless(e.target.checked)}
+                className="size-4 accent-[oklch(0.8_0.12_75)]"
+              />
+              <Zap className="size-4" />
+              Serverless mode — send from this browser
+            </label>
+            {serverless && (
+              <div className="mt-2 flex items-center gap-2 text-[12px] opacity-70">
+                <span>Seconds between chats</span>
+                <input
+                  type="number"
+                  min={2}
+                  max={60}
+                  value={gap}
+                  onChange={(e) => setGap(Number(e.target.value) || 8)}
+                  className={`${softField} h-8 w-20`}
+                />
+              </div>
+            )}
+            <p className="mt-2 text-[11px] leading-relaxed opacity-60">
+              {serverless
+                ? "Uses your own logged-in WhatsApp Web in one reused tab — no server, no API keys, nothing for customers to activate. Allow pop-ups for this site."
+                : "Uses the server sender (gateway / Cloud API / CallMeBot)."}
+            </p>
+          </div>
+
           <button
             type="button"
-            disabled={selected.length === 0 || blast.isPending}
-            onClick={() => blast.mutate(undefined)}
-            className={`${goldBtn} mt-4 flex w-full items-center justify-center gap-2`}
+            disabled={selected.length === 0 || blast.isPending || !!progress}
+            onClick={() => (serverless ? runBrowser(selected) : blast.mutate(undefined))}
+            className={`${goldBtn} mt-3 flex w-full items-center justify-center gap-2`}
           >
             <Send className="size-4" />
-            {blast.isPending ? "Sending…" : `Send to ${selected.length} user${selected.length === 1 ? "" : "s"}`}
+            {blast.isPending || progress
+              ? "Sending…"
+              : `Send to ${selected.length} user${selected.length === 1 ? "" : "s"}`}
           </button>
 
           <button
             type="button"
-            disabled={blast.isPending || (people.data ?? []).length === 0}
+            disabled={blast.isPending || !!progress || (people.data ?? []).length === 0}
             onClick={sendToEveryone}
             className={`${ghostBtn} mt-2 flex w-full items-center justify-center gap-2`}
           >
             <Users className="size-4" />
-            {blast.isPending
+            {blast.isPending || progress
               ? "Sending…"
               : `Send to all ${(people.data ?? []).length} users now`}
           </button>
+
+          {progress && (
+            <div className="mt-3 space-y-2">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-black/10">
+                <div
+                  className="h-full rounded-full bg-[oklch(0.8_0.12_75)] transition-all"
+                  style={{ width: `${(progress.i / Math.max(1, progress.total)) * 100}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[12px] opacity-70">
+                <span>
+                  {progress.i} / {progress.total} chats opened
+                </span>
+                <button type="button" onClick={stopBrowser} className="flex items-center gap-1 font-semibold underline">
+                  <Square className="size-3.5" /> Stop
+                </button>
+              </div>
+            </div>
+          )}
+
+
 
         </Panel>
 
