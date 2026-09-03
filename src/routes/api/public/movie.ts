@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { fetchPlayback } from "@/lib/moviebox";
+import { fetchPlayback, startDownload, finishDownload } from "@/lib/moviebox";
 import { parseDash, segmentName, type DashRep } from "@/lib/dash-manifest";
 import { mergeInitSegments, retrackSegment, stripSegmentHeaders } from "@/lib/mp4mux";
 
@@ -49,7 +49,12 @@ export const Route = createFileRoute("/api/public/movie")({
         const ep = Number(url.searchParams.get("ep") ?? 0) || 0;
         const wanted = Number(url.searchParams.get("res") ?? 0) || 0;
         const filename = `${safeName(url.searchParams.get("dl") ?? "movie")}.mp4`;
+        const resourceId = url.searchParams.get("resourceId") ?? "";
         if (!subjectId) return new Response("subjectId required", { status: 400 });
+
+        // Download-lifecycle start (APK 4.0.02.0831.02): authorization/accounting
+        // step, separate from resolving the signed media.
+        if (resourceId) await startDownload(subjectId, resourceId, ep);
 
         const playback = await fetchPlayback(subjectId, se, ep).catch(() => null);
         if (!playback) return new Response("This title is not available for download", { status: 404 });
@@ -120,6 +125,8 @@ export const Route = createFileRoute("/api/public/movie")({
                 if (next < plan.length) pipeline.push(load(next));
               }
               controller.close();
+              // Only report completion once every byte was delivered.
+              if (resourceId) void finishDownload(subjectId, resourceId, ep);
             } catch (err) {
               controller.error(err);
             }
