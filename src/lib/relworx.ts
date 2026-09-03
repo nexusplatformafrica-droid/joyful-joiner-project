@@ -176,6 +176,8 @@ export type WithdrawResult = {
   internal_reference: string | null;
   status: "pending" | "success" | "failed";
   message: string;
+  currency: string;
+  msisdn: string;
 };
 
 /**
@@ -186,17 +188,27 @@ export type WithdrawResult = {
 export async function sendWithdrawal(input: {
   phone: string;
   amount: number;
+  currency?: string;
   description?: string;
 }): Promise<WithdrawResult> {
-  const msisdn = normalizeMsisdn(input.phone);
-  if (!isValidMsisdn(msisdn)) throw new Error("Enter a valid Ugandan MTN or Airtel number");
+  const target = input.currency
+    ? countryByCurrency(input.currency)
+    : (countryFromPhone(input.phone) ?? DEFAULT_COUNTRY);
+  const msisdn = normalizeFor(input.phone, target);
+  if (!isValidFor(msisdn, target))
+    throw new Error(`Enter a valid ${target.name} mobile money number`);
   const amount = Math.round(Number(input.amount));
   if (!amount || amount <= 0) throw new Error("Enter a valid amount");
+  if (amount < target.min)
+    throw new Error(`${target.currency} minimum payout is ${target.min.toLocaleString()}`);
+  if (amount > target.max)
+    throw new Error(`${target.currency} maximum payout is ${target.max.toLocaleString()}`);
 
   const reference = `LUO-WD-${Date.now()}`;
   const res = await relworx.withdraw({
     msisdn,
     amount,
+    currency: target.currency,
     reference,
     description: input.description || "LUOFILM payout",
   });
@@ -205,7 +217,14 @@ export async function sendWithdrawal(input: {
   if (!internal) {
     const first = readStatus(res);
     if (first.status === "failed") throw new Error(first.message || "Relworx rejected the payout");
-    return { reference, internal_reference: null, status: first.status, message: first.message };
+    return {
+      reference,
+      internal_reference: null,
+      status: first.status,
+      message: first.message,
+      currency: target.currency,
+      msisdn,
+    };
   }
 
   // Poll for up to ~30s; anything still pending stays pending in the ledger.
@@ -226,10 +245,12 @@ export async function sendWithdrawal(input: {
     message:
       last.message ||
       (last.status === "success" ? "Payout sent" : "Payout is still being processed"),
+    currency: target.currency,
+    msisdn,
   };
 }
 
-/** Live Relworx wallet balance in UGX; null when the service is unreachable. */
+/** Live Relworx wallet balance for a currency; null when unreachable. */
 export async function walletBalance(currency = CURRENCY_CODE): Promise<number | null> {
   try {
     const res = await relworx.balance(currency);
@@ -240,4 +261,20 @@ export async function walletBalance(currency = CURRENCY_CODE): Promise<number | 
   } catch {
     return null;
   }
+}
+
+export type CurrencyBalance = { currency: string; country: string; flag: string; balance: number | null };
+
+/** Live balance for every supported country, fetched in parallel. */
+export async function allWalletBalances(): Promise<CurrencyBalance[]> {
+  return Promise.all(
+    COUNTRIES.map(async (c) => ({
+      currency: c.currency,
+      country: c.name,
+      flag: c.flag,
+      balance: await walletBalance(c.currency),
+    })),
+  );
+}
+
 }
