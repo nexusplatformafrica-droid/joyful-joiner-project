@@ -534,9 +534,13 @@ const toSource = (entry: any): StreamSource => ({
 
 export async function fetchSources(subjectId: string, season = 0, episode = 0) {
   const isEpisode = season > 0 && episode > 0;
-  const range = isEpisode ? `&se=${season}&ep=${episode}` : "";
+  // APK 4.0.02.0831.02 exposes resource/v2 with se/epFrom/epTo (the old `ep`
+  // name is kept only as a legacy fallback below).
+  const V2 = `${API_PREFIX}/subject-api/resource/v2`;
+  const V1 = `${API_PREFIX}/subject-api/resource`;
+  const range = isEpisode ? `&se=${season}&epFrom=${episode}&epTo=${episode}` : "";
   const page = isEpisode ? Math.max(1, Math.ceil(episode / 20)) : 1;
-  const base = `/wefeed-mobile-bff/subject-api/resource?subjectId=${subjectId}${range}&perPage=20`;
+  const base = `${V2}?subjectId=${subjectId}${range}&perPage=20`;
 
   const data = await request("GET", `${base}&page=${page}`).catch(() => null as any);
 
@@ -562,11 +566,18 @@ export async function fetchSources(subjectId: string, season = 0, episode = 0) {
   // widening the query until something playable comes back.
   if (!lists.some((l) => l.length)) {
     const fallbacks = isEpisode
-      ? [`${base}&page=1`, `/wefeed-mobile-bff/subject-api/resource?subjectId=${subjectId}&page=1&perPage=20`]
+      ? [
+          `${base}&page=1`,
+          `${V1}?subjectId=${subjectId}&se=${season}&ep=${episode}&page=1&perPage=20`,
+          `${V2}?subjectId=${subjectId}&page=1&perPage=20`,
+          `${V1}?subjectId=${subjectId}&page=1&perPage=20`,
+        ]
       : [
-          `/wefeed-mobile-bff/subject-api/resource?subjectId=${subjectId}&se=1&ep=1&page=1&perPage=20`,
-          `/wefeed-mobile-bff/subject-api/resource?subjectId=${subjectId}&page=2&perPage=20`,
+          `${V1}?subjectId=${subjectId}&page=1&perPage=20`,
+          `${V2}?subjectId=${subjectId}&se=1&epFrom=1&epTo=1&page=1&perPage=20`,
+          `${V2}?subjectId=${subjectId}&page=2&perPage=20`,
         ];
+
     for (const path of fallbacks) {
       const res = await request("GET", path).catch(() => null as any);
       const list = Array.isArray(res?.list) ? res.list : [];
