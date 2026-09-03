@@ -293,9 +293,10 @@ export function SubscribeModal({
                     )}
                     <p className="truncate text-[10px] font-semibold leading-tight sm:text-[13px]">{p.name}</p>
                     <p className="mt-1 text-[13px] font-black leading-none sm:mt-2 sm:text-[22px]">
-                      <span className="text-[9px] font-bold sm:text-[13px]">UGX </span>
-                      {Math.round(p.price).toLocaleString()}
+                      <span className="text-[9px] font-bold sm:text-[13px]">{country.currency} </span>
+                      {Math.round(convertPrice(p.price, country)).toLocaleString()}
                     </p>
+
                     <p className="mt-0.5 text-[10px] opacity-70 sm:mt-1 sm:text-[11px]">
                       {p.days === 1 ? "24 hours" : `${p.days} days`}
                     </p>
