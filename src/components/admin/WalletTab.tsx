@@ -139,18 +139,22 @@ export function WalletTab() {
       const amount = Number(form.amount);
       if (!form.phone.trim()) throw new Error("Phone number is required");
       if (!amount || amount <= 0) throw new Error("Enter a valid amount");
-      if (amount > balance) throw new Error("Amount is more than the available balance");
+      const cap = payoutBalance ?? (form.currency === "UGX" ? balance : null);
+      if (cap != null && amount > cap)
+        throw new Error(`Amount is more than the available ${form.currency} balance`);
 
       const result = await sendWithdrawal({
         phone: form.phone,
         amount,
+        currency: form.currency,
         description: form.reason.trim() || "LUOFILM payout",
       });
 
       const { data: me } = await supabase.auth.getUser();
       const { error } = await supabase.from("luo_withdrawals").insert({
         amount,
-        phone: normalizeMsisdn(form.phone),
+        currency: result.currency,
+        phone: normalizeFor(form.phone, payoutCountry),
         reason: form.reason.trim() || null,
         reference: result.reference,
         internal_reference: result.internal_reference,
@@ -165,7 +169,8 @@ export function WalletTab() {
     onSuccess: (result) => {
       if (result.status === "success") toast.success(result.message || "Payout sent");
       else toast.info(result.message || "Payout is still being processed");
-      setForm({ phone: "", amount: "", reason: "" });
+      setForm({ phone: "", amount: "", reason: "", currency: form.currency });
+
       setWdOpen(false);
       void qc.invalidateQueries({ queryKey: ["admin-wallet"] });
       void qc.invalidateQueries({ queryKey: ["admin-overview"] });
