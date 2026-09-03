@@ -1,14 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import {
+  catalogDownloadUrl,
   formatBytes,
-  mediaDownloadName,
   mediaDownloadUrl,
   mediaProbeUrl,
   startBrowserDownload,
   subtitleDownloadUrl,
 } from "@/lib/download";
-import { downloadCatalogMovie } from "@/lib/catalog-download";
 import { useSubscription } from "@/hooks/useSubscription";
 
 type StreamSource = {
@@ -46,10 +45,6 @@ export function DownloadDialog({
 }: Props) {
   const { subscribed, requireSubscription } = useSubscription();
   const [probed, setProbed] = useState<Record<string, number | null>>({});
-  const [job, setJob] = useState<
-    { id: string; ratio: number; bytes: number; error: string | null } | null
-  >(null);
-  const abortRef = useRef<AbortController | null>(null);
 
   // Real sizes come from our relay (the CDNs block cross-origin HEAD), and the
   // probe also exposes provider files that are only a short promo clip rather
@@ -72,43 +67,6 @@ export function DownloadDialog({
 
 
 
-
-  // Catalog (API) titles are rebuilt from the signed DASH stream in the
-  // browser and streamed to the download manager / chosen file.
-  const startCatalogDownload = async (source: StreamSource, label: string) => {
-    if (!requireSubscription()) {
-      onClose();
-      return;
-    }
-    if (job) return;
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setJob({ id: source.id, ratio: 0, bytes: 0, error: null });
-    try {
-      await downloadCatalogMovie({
-        subjectId: catalogId!,
-        season,
-        episode,
-        resolution: source.resolution,
-        filename: mediaDownloadName(label),
-        signal: controller.signal,
-        onProgress: (p) =>
-          setJob((prev) => (prev ? { ...prev, ratio: p.ratio, bytes: p.bytes } : prev)),
-      });
-      setJob(null);
-      onClose();
-    } catch (err) {
-      if ((err as { name?: string })?.name === "AbortError") {
-        setJob(null);
-        return;
-      }
-      setJob((prev) =>
-        prev ? { ...prev, error: (err as Error)?.message || "Download failed" } : prev,
-      );
-    } finally {
-      abortRef.current = null;
-    }
-  };
 
   const startManagedDownload = (source: StreamSource, filename: string) => {
     if (!requireSubscription()) {
@@ -172,25 +130,25 @@ export function DownloadDialog({
               {videos.map((source) => {
                 const label = `${baseName}.${source.resolution || "auto"}p`;
                 if (catalogId) {
-                  const active = job?.id === source.id;
+                  // Server rebuilds the signed stream into one MP4 and answers
+                  // with an attachment, so the browser's own download manager
+                  // saves the file — nothing is buffered in the page.
                   return (
-                    <button
+                    <a
                       key={source.id}
-                      type="button"
                       data-tour="quality"
-                      disabled={!!job && !active}
-                      onClick={() => startCatalogDownload(source, label)}
-                      className={`${tile} disabled:opacity-50`}
+                      href={catalogDownloadUrl(catalogId, season, episode, source.resolution, label)}
+                      download
+                      onClick={guard}
+                      className={tile}
                     >
                       <span className="text-sm font-bold text-foreground">
                         {source.resolution ? `${source.resolution}P` : "AUTO"}
                       </span>
                       <span className="text-[11px] text-muted-foreground">
-                        {active
-                          ? (job.error ?? `${Math.round(job.ratio * 100)}%`)
-                          : (formatBytes(source.bytes ?? null) ?? source.size ?? "Full movie")}
+                        {formatBytes(source.bytes ?? null) ?? source.size ?? "Full movie"}
                       </span>
-                    </button>
+                    </a>
                   );
                 }
                 return blobDownload ? (
@@ -230,34 +188,6 @@ export function DownloadDialog({
           ) : (
             <p className="mt-2 text-xs text-muted-foreground">No downloadable file available.</p>
           )}
-
-          {job && (
-            <div className="mt-4 rounded-xl bg-muted/60 p-3">
-              <div className="flex items-center justify-between text-[12px] font-semibold text-foreground">
-                <span>{job.error ? "Download failed" : "Preparing your movie…"}</span>
-                <button
-                  type="button"
-                  className="text-[11px] font-semibold text-muted-foreground hover:text-foreground"
-                  onClick={() => {
-                    abortRef.current?.abort();
-                    setJob(null);
-                  }}
-                >
-                  {job.error ? "Dismiss" : "Cancel"}
-                </button>
-              </div>
-              <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-background">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-primary to-vip transition-[width] duration-300"
-                  style={{ width: `${Math.max(2, Math.round(job.ratio * 100))}%` }}
-                />
-              </div>
-              <p className="mt-1.5 text-[11px] text-muted-foreground">
-                {job.error ?? `${Math.round(job.ratio * 100)}% · ${formatBytes(job.bytes) ?? "0 B"} saved`}
-              </p>
-            </div>
-          )}
-
 
           <p className="mt-5 text-sm font-semibold text-foreground">Subtitle file</p>
           {captions.length ? (

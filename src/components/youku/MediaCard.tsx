@@ -25,8 +25,11 @@ export function MediaCard({
           <img
             src={item.poster}
             alt={item.title}
-            loading={priority ? "eager" : "lazy"}
-            fetchPriority={priority ? "high" : "auto"}
+            // Every poster is fetched right away (not only the visible row), so
+            // scrolling never lands on a blank tile. Off-screen artwork is
+            // simply queued at a lower priority than the first row.
+            loading="eager"
+            fetchPriority={priority ? "high" : "low"}
             decoding="async"
             className="size-full object-cover"
           />
