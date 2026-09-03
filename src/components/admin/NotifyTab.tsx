@@ -64,8 +64,9 @@ export function NotifyTab() {
       .replaceAll("{title}", title || "a new title");
 
   const blast = useMutation({
-    mutationFn: async () => {
-      const recipients = selected.map((u) => ({ phone: u.phone!, message: render(u) }));
+    mutationFn: async (target?: Row[]) => {
+      const list = target ?? selected;
+      const recipients = list.map((u) => ({ phone: u.phone!, message: render(u) }));
       return send({ data: { recipients } });
     },
     onSuccess: (res) => {
@@ -77,6 +78,18 @@ export function NotifyTab() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // One click, no confirmation: fires to every user with a phone number.
+  const sendToEveryone = () => {
+    const all = people.data ?? [];
+    if (all.length === 0) {
+      toast.error("No users with a phone number yet");
+      return;
+    }
+    setPicked(Object.fromEntries(all.map((u) => [u.id, true])));
+    blast.mutate(all);
+  };
+
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
