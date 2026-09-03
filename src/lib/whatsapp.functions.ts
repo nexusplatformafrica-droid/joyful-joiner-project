@@ -45,7 +45,7 @@ export type SendResult = {
   fallback?: string;
 };
 
-type Cloud = { token: string; phoneId: string; template?: string; lang: string } | null;
+type Cloud = { token: string; phoneId: string; template?: string | undefined; lang: string } | null;
 
 /**
  * Meta WhatsApp Cloud API — the only sender that reaches ordinary customers
