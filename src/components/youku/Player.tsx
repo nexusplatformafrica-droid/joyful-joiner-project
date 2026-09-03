@@ -7,7 +7,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
-import watermark from "@/assets/luofilm-watermark.png.asset.json";
+import watermarkUrl from "@/assets/luofilm-mark.png";
 import { isHlsUrl } from "@/lib/download";
 
 export type Subtitle = { label: string; src: string };
@@ -252,7 +252,7 @@ export function Player({
         controls,
         layers: [
           {
-            html: `<img src="${watermark.url}" alt="LUOFILM" style="width:38px;height:38px;opacity:.75" />`,
+            html: `<img src="${watermarkUrl}" alt="LUOFILM" style="height:34px;width:auto;opacity:.8" />`,
             style: { position: "absolute", top: "14px", right: "14px", pointerEvents: "none" },
           },
         ],
