@@ -221,6 +221,20 @@ export function NotifyTab() {
 
         {results.length > 0 && (
           <Panel title="Delivery">
+            {results.some((r) => !r.ok) && (
+              <button
+                type="button"
+                className={`${ghostBtn} mb-3 flex w-full items-center justify-center gap-2`}
+                onClick={() =>
+                  results
+                    .filter((r) => !r.ok && r.fallback)
+                    .forEach((r, i) => setTimeout(() => window.open(r.fallback!, "_blank"), i * 400))
+                }
+              >
+                <ExternalLink className="size-4" />
+                Open all {results.filter((r) => !r.ok).length} remaining chats
+              </button>
+            )}
             <ul className="space-y-2 text-[12px]">
               {results.map((r) => (
                 <li
@@ -228,6 +242,7 @@ export function NotifyTab() {
                   className="flex items-center gap-2 rounded-2xl bg-white/65 px-3 py-2 ring-1 ring-black/5"
                 >
                   <span className="flex-1 truncate">+{r.phone}</span>
+
                   {r.ok ? (
                     <span className="flex items-center gap-1 font-semibold text-[oklch(0.55_0.14_150)]">
                       <CheckCheck className="size-4" /> Sent
