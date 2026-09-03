@@ -45,8 +45,59 @@ export type SendResult = {
   fallback?: string;
 };
 
-async function sendOne(phone: string, message: string): Promise<SendResult> {
+type Cloud = { token: string; phoneId: string; template?: string; lang: string } | null;
+
+/**
+ * Meta WhatsApp Cloud API — the only sender that reaches ordinary customers
+ * without them activating anything. Free tier covers ~1000 conversations/mo.
+ */
+async function sendCloud(cloud: NonNullable<Cloud>, to: string, message: string): Promise<SendResult> {
+  const url = `https://graph.facebook.com/v21.0/${cloud.phoneId}/messages`;
+  const body = cloud.template
+    ? {
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: cloud.template,
+          language: { code: cloud.lang },
+          components: [{ type: "body", parameters: [{ type: "text", text: message.slice(0, 900) }] }],
+        },
+      }
+    : {
+        messaging_product: "whatsapp",
+        to,
+        type: "text",
+        text: { preview_url: true, body: message },
+      };
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${cloud.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const text = (await res.text()).slice(0, 400);
+    if (!res.ok) {
+      return { phone: to, ok: false, status: "failed", detail: text, fallback: waLink(to, message) };
+    }
+    return { phone: to, ok: true, status: "sent" };
+  } catch (err) {
+    return {
+      phone: to,
+      ok: false,
+      status: "failed",
+      detail: err instanceof Error ? err.message : "network error",
+      fallback: waLink(to, message),
+    };
+  }
+}
+
+async function sendOne(phone: string, message: string, cloud: Cloud): Promise<SendResult> {
   const to = normalisePhone(phone);
+  if (cloud) {
+    const r = await sendCloud(cloud, to, message);
+    if (r.ok) return r;
+  }
   const apikey = CALLMEBOT_KEYS[to];
   if (!apikey) {
     return { phone: to, ok: false, status: "no-key", fallback: waLink(to, message) };
@@ -76,12 +127,25 @@ async function sendOne(phone: string, message: string): Promise<SendResult> {
 export const sendWhatsappBlast = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => payload.parse(data))
   .handler(async ({ data }) => {
+    const token = process.env["WHATSAPP_TOKEN"];
+    const phoneId = process.env["WHATSAPP_PHONE_NUMBER_ID"];
+    const cloud: Cloud =
+      token && phoneId
+        ? {
+            token,
+            phoneId,
+            template: process.env["WHATSAPP_TEMPLATE_NAME"] || undefined,
+            lang: process.env["WHATSAPP_TEMPLATE_LANG"] || "en",
+          }
+        : null;
+
     const results: SendResult[] = [];
-    // small batches keep CallMeBot happy (it rate limits bursts)
-    for (let i = 0; i < data.recipients.length; i += 4) {
-      const batch = data.recipients.slice(i, i + 4);
-      results.push(...(await Promise.all(batch.map((r) => sendOne(r.phone, r.message)))));
-      if (i + 4 < data.recipients.length) await new Promise((r) => setTimeout(r, 900));
+    const size = cloud ? 10 : 4;
+    for (let i = 0; i < data.recipients.length; i += size) {
+      const batch = data.recipients.slice(i, i + size);
+      results.push(...(await Promise.all(batch.map((r) => sendOne(r.phone, r.message, cloud)))));
+      if (i + size < data.recipients.length) await new Promise((r) => setTimeout(r, cloud ? 250 : 900));
     }
-    return { results };
+    return { results, provider: cloud ? ("cloud" as const) : ("callmebot" as const) };
   });
+
