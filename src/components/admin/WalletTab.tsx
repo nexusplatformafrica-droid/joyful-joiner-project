@@ -204,6 +204,49 @@ export function WalletTab() {
         />
       </div>
 
+      <Panel
+        title="Balances by country"
+        action={
+          <span className="text-[11px] opacity-60">
+            {balances.isFetching ? "refreshing…" : "live from Relworx"}
+          </span>
+        }
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {(balances.data ?? COUNTRIES.map((c) => ({
+            currency: c.currency,
+            country: c.name,
+            flag: c.flag,
+            balance: null as number | null,
+          }))).map((b) => (
+            <button
+              key={b.currency}
+              type="button"
+              onClick={() => {
+                setForm((f) => ({ ...f, currency: b.currency }));
+                setWdOpen(true);
+              }}
+              className="rounded-2xl bg-white/65 px-3 py-3 text-left transition hover:bg-white"
+            >
+              <span className="flex items-center gap-2 text-[12px] font-semibold">
+                <span className="text-[16px]">{b.flag}</span>
+                {b.country}
+              </span>
+              <span className="mt-1 block text-[16px] font-black leading-none">
+                {b.balance == null
+                  ? balances.isLoading
+                    ? "…"
+                    : "unavailable"
+                  : formatAmount(b.balance, b.currency)}
+              </span>
+              <span className="mt-1 block text-[10.5px] opacity-55">{b.currency} wallet</span>
+            </button>
+          ))}
+        </div>
+      </Panel>
+
+
+
       <Panel title="Income · last 21 days">
         <SoftArea data={chart} prefix="UGX " color="oklch(0.68 0.14 160)" />
       </Panel>
