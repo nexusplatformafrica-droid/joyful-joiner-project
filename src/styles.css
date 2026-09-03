@@ -59,42 +59,70 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-vip: var(--vip);
+  --color-vip-foreground: var(--vip-foreground);
+  --color-hot: var(--hot);
+  --color-hot-foreground: var(--hot-foreground);
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  /* Youku dark theme */
+  --background: oklch(0.165 0.006 264);
+  --foreground: oklch(0.97 0 0);
+  --card: oklch(0.21 0.007 264);
+  --card-foreground: oklch(0.97 0 0);
+  --popover: oklch(0.21 0.007 264);
+  --popover-foreground: oklch(0.97 0 0);
+  --primary: oklch(0.62 0.30 325);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.26 0.008 264);
+  --secondary-foreground: oklch(0.97 0 0);
+  --muted: oklch(0.26 0.008 264);
+  --muted-foreground: oklch(0.66 0.008 264);
+  --accent: oklch(0.28 0.01 264);
+  --accent-foreground: oklch(0.97 0 0);
+  --destructive: oklch(0.62 0.24 27);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.62 0.30 325);
+  /* Youku brand accents */
+  --brand: oklch(0.62 0.30 325);
+  --brand-foreground: oklch(0.99 0 0);
+  --vip: oklch(0.83 0.14 88);
+  --vip-foreground: oklch(0.22 0.05 60);
+  --hot: oklch(0.6 0.23 25);
+  --hot-foreground: oklch(0.99 0 0);
+  --sidebar-w: 172px;
+  --gradient-vip: linear-gradient(100deg, oklch(0.88 0.13 92), oklch(0.78 0.15 72));
+  --gradient-hot: linear-gradient(135deg, oklch(0.6 0.23 25), oklch(0.62 0.22 12));
+  --gradient-hero-fade: linear-gradient(
+    90deg,
+    oklch(0.165 0.006 264 / 0.95) 0%,
+    oklch(0.165 0.006 264 / 0.7) 38%,
+    oklch(0.165 0.006 264 / 0) 70%
+  );
+  --gradient-hero-bottom: linear-gradient(
+    0deg,
+    oklch(0.165 0.006 264) 2%,
+    oklch(0.165 0.006 264 / 0) 55%
+  );
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --sidebar: oklch(0.145 0.005 264);
+  --sidebar-foreground: oklch(0.82 0.005 264);
+  --sidebar-primary: oklch(0.62 0.30 325);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.24 0.008 264);
+  --sidebar-accent-foreground: oklch(0.99 0 0);
+  --sidebar-border: oklch(1 0 0 / 6%);
+  --sidebar-ring: oklch(0.62 0.30 325);
 }
 
 .dark {
@@ -140,5 +168,379 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family:
+      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui,
+      sans-serif;
+  }
+}
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--color-foreground) 22%, transparent);
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--color-foreground) 40%, transparent);
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility badge-vip {
+  background-image: var(--gradient-vip);
+  color: var(--vip-foreground);
+}
+
+@utility badge-hot {
+  background-image: var(--gradient-hot);
+  color: var(--hot-foreground);
+}
+
+@utility poster-title {
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-shadow: 0 2px 12px oklch(0 0 0 / 0.7);
+}
+
+@utility admin-surface {
+  background-image: radial-gradient(
+      120% 90% at 0% 0%,
+      color-mix(in oklab, var(--primary) 12%, transparent) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      90% 70% at 100% 0%,
+      color-mix(in oklab, var(--primary) 7%, transparent) 0%,
+      transparent 60%
+    );
+}
+
+@utility card-soft {
+  border-radius: 1rem;
+  background-color: color-mix(in oklab, var(--card) 88%, transparent);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px oklch(0 0 0 / 0.25), 0 12px 28px -22px oklch(0 0 0 / 0.9);
+  backdrop-filter: blur(10px);
+}
+
+/* Compact MovieBox-style ArtPlayer chrome: edge-to-edge black canvas, thin
+   progress line, and a single restrained control strip. */
+.moviebox-player .art-video-player,
+.moviebox-player .art-video {
+  background: oklch(0 0 0);
+}
+
+.moviebox-player .art-bottom {
+  padding: 0 10px 8px;
+}
+
+.moviebox-player .art-progress {
+  height: 3px;
+}
+
+.moviebox-player .art-controls {
+  min-height: 42px;
+  background: linear-gradient(to top, oklch(0 0 0 / 0.92), transparent);
+}
+
+.moviebox-player .art-control {
+  min-width: 36px;
+}
+
+/* Center play button — red circle with white play glyph like the reference. */
+.moviebox-player .art-state {
+  width: 76px;
+  height: 76px;
+  background: oklch(0.58 0.24 27);
+  border-radius: 9999px;
+  color: oklch(0.99 0 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.moviebox-player .art-state .art-icon,
+.moviebox-player .art-state .art-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.moviebox-player .art-state .art-icon svg {
+  filter: drop-shadow(0 2px 4px oklch(0 0 0 / 0.35));
+}
+
+/* Bottom-bar controls — text labels + icon buttons. */
+.moviebox-player .art-control[data-index="5"],
+.moviebox-player .art-control[data-index="6"],
+.moviebox-player .art-control[data-index="10"],
+.moviebox-player .art-control[data-index="20"],
+.moviebox-player .art-control[data-index="30"] {
+  min-width: auto;
+  padding: 0 6px;
+}
+
+/* Second subtitle line */
+.moviebox-player .art-dualsub {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 74px;
+  z-index: 20;
+  display: none;
+  padding: 0 12px;
+  text-align: center;
+  font-size: 17px;
+  line-height: 1.35;
+  color: oklch(1 0 0);
+  text-shadow: 0 2px 4px oklch(0 0 0 / 0.9);
+  pointer-events: none;
+}
+
+
+@media (max-width: 640px) {
+  .moviebox-player .art-bottom {
+    padding-inline: 4px;
+  }
+
+  .moviebox-player .art-control {
+    min-width: 32px;
+  }
+}
+
+/* ---- Liquid glass (Apple-style) player surfaces ---- */
+@utility glass-panel {
+  border-radius: 1.15rem;
+  background-image: linear-gradient(
+    to bottom,
+    oklch(1 0 0 / 0.18) 0%,
+    oklch(1 0 0 / 0.08) 45%,
+    oklch(1 0 0 / 0.05) 100%
+  );
+  border: 1px solid oklch(1 0 0 / 0.18);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.35),
+    inset 0 -1px 0 oklch(0 0 0 / 0.25),
+    0 18px 40px -18px oklch(0 0 0 / 0.9);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+
+@utility glass-pill {
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  background-color: oklch(1 0 0 / 0.14);
+  border: 1px solid oklch(1 0 0 / 0.18);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.3);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+}
+
+@utility glass-btn {
+  background-color: oklch(1 0 0 / 0.12);
+  border: 1px solid oklch(1 0 0 / 0.16);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.28);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+@utility glass-orb {
+  border-radius: 999px;
+  background-image: radial-gradient(
+    120% 120% at 30% 20%,
+    oklch(1 0 0 / 0.32) 0%,
+    oklch(1 0 0 / 0.1) 55%,
+    oklch(1 0 0 / 0.05) 100%
+  );
+  border: 1px solid oklch(1 0 0 / 0.22);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.4),
+    0 20px 44px -18px oklch(0 0 0 / 0.95);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+
+/* ---- Liquid hover: specular sheen + soft swell on interactive glass ---- */
+@utility liquid-hover {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.35s ease;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-image: radial-gradient(
+      75% 120% at 50% -20%,
+      oklch(1 0 0 / 0.55) 0%,
+      oklch(1 0 0 / 0.12) 45%,
+      oklch(1 0 0 / 0) 75%
+    );
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -60%;
+    width: 45%;
+    z-index: -1;
+    border-radius: inherit;
+    background-image: linear-gradient(
+      100deg,
+      oklch(1 0 0 / 0) 0%,
+      oklch(1 0 0 / 0.45) 50%,
+      oklch(1 0 0 / 0) 100%
+    );
+    transform: skewX(-18deg);
+    opacity: 0;
+  }
+  &:hover {
+    transform: translateY(-1px) scale(1.06);
+    background-color: oklch(1 0 0 / 0.22);
+    box-shadow:
+      inset 0 1px 0 oklch(1 0 0 / 0.5),
+      0 10px 26px -12px oklch(0 0 0 / 0.9);
+  }
+  &:hover::before {
+    opacity: 1;
+  }
+  &:hover::after {
+    opacity: 1;
+    animation: liquid-sheen 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  &:active {
+    transform: scale(0.94);
+  }
+}
+
+@keyframes liquid-sheen {
+  from {
+    left: -60%;
+  }
+  to {
+    left: 115%;
+  }
+}
+
+@keyframes liquid-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes liquid-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+
+@keyframes liquid-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* ---- Animated gradient ring for the search bar ---- */
+@keyframes search-glow {
+  to {
+    background-position: 300% 0;
+  }
+}
+
+.search-glow {
+  background: linear-gradient(120deg, #00eaff, #c822ff, #5cff00, #00eaff);
+  background-size: 300% 100%;
+  animation: search-glow 6s linear infinite;
+  box-shadow: 0 4px 20px -8px color-mix(in oklab, #00eaff 60%, transparent);
+}
+
+/* ---- WhatsApp prompt auto-exit progress bar ---- */
+@keyframes wa-exit-bar {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+/* ---- Brand-tinted player controls ---- */
+@utility brand-btn {
+  background-color: color-mix(in oklab, var(--brand) 48%, transparent);
+  border: 1px solid color-mix(in oklab, var(--brand) 70%, transparent);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.3),
+    0 8px 20px -12px var(--brand);
+  color: var(--brand-foreground);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  &:hover:hover {
+    background-color: color-mix(in oklab, var(--brand) 82%, transparent);
+  }
+}
+
+@utility brand-orb {
+  border-radius: 999px;
+  background-image: radial-gradient(
+    120% 120% at 30% 20%,
+    color-mix(in oklab, var(--brand) 92%, white) 0%,
+    var(--brand) 55%,
+    color-mix(in oklab, var(--brand) 70%, black) 100%
+  );
+  border: 1px solid oklch(1 0 0 / 0.28);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.45),
+    0 20px 44px -16px color-mix(in oklab, var(--brand) 80%, transparent);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  &:hover:hover {
+    background-color: transparent;
   }
 }

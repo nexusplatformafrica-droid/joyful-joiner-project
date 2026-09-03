@@ -10,33 +10,219 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as TutorialRouteImport } from './routes/tutorial'
+import { Route as CategorySlugRouteImport } from './routes/category.$slug'
+import { Route as LugandaIndexRouteImport } from './routes/luganda.index'
+import { Route as LugandaIdRouteImport } from './routes/luganda.$id'
+import { Route as LuoIndexRouteImport } from './routes/luo.index'
+import { Route as LuoIdRouteImport } from './routes/luo.$id'
+import { Route as PayIdRouteImport } from './routes/pay.$id'
+import { Route as WatchIdRouteImport } from './routes/watch.$id'
+import { Route as ApiPublicMovieRouteImport } from './routes/api/public/movie'
+import { Route as ApiPublicStreamRouteImport } from './routes/api/public/stream'
+import { Route as ApiPublicSubtitleRouteImport } from './routes/api/public/subtitle'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TutorialRoute = TutorialRouteImport.update({
+  id: '/tutorial',
+  path: '/tutorial',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CategorySlugRoute = CategorySlugRouteImport.update({
+  id: '/category/$slug',
+  path: '/category/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LugandaIndexRoute = LugandaIndexRouteImport.update({
+  id: '/luganda/',
+  path: '/luganda/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LugandaIdRoute = LugandaIdRouteImport.update({
+  id: '/luganda/$id',
+  path: '/luganda/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LuoIndexRoute = LuoIndexRouteImport.update({
+  id: '/luo/',
+  path: '/luo/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LuoIdRoute = LuoIdRouteImport.update({
+  id: '/luo/$id',
+  path: '/luo/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PayIdRoute = PayIdRouteImport.update({
+  id: '/pay/$id',
+  path: '/pay/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WatchIdRoute = WatchIdRouteImport.update({
+  id: '/watch/$id',
+  path: '/watch/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicMovieRoute = ApiPublicMovieRouteImport.update({
+  id: '/api/public/movie',
+  path: '/api/public/movie',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicStreamRoute = ApiPublicStreamRouteImport.update({
+  id: '/api/public/stream',
+  path: '/api/public/stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSubtitleRoute = ApiPublicSubtitleRouteImport.update({
+  id: '/api/public/subtitle',
+  path: '/api/public/subtitle',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/search': typeof SearchRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/tutorial': typeof TutorialRoute
+  '/category/$slug': typeof CategorySlugRoute
+  '/luganda/$id': typeof LugandaIdRoute
+  '/luo/$id': typeof LuoIdRoute
+  '/pay/$id': typeof PayIdRoute
+  '/watch/$id': typeof WatchIdRoute
+  '/luganda/': typeof LugandaIndexRoute
+  '/luo/': typeof LuoIndexRoute
+  '/api/public/movie': typeof ApiPublicMovieRoute
+  '/api/public/stream': typeof ApiPublicStreamRoute
+  '/api/public/subtitle': typeof ApiPublicSubtitleRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/search': typeof SearchRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/tutorial': typeof TutorialRoute
+  '/category/$slug': typeof CategorySlugRoute
+  '/luganda/$id': typeof LugandaIdRoute
+  '/luo/$id': typeof LuoIdRoute
+  '/pay/$id': typeof PayIdRoute
+  '/watch/$id': typeof WatchIdRoute
+  '/luganda': typeof LugandaIndexRoute
+  '/luo': typeof LuoIndexRoute
+  '/api/public/movie': typeof ApiPublicMovieRoute
+  '/api/public/stream': typeof ApiPublicStreamRoute
+  '/api/public/subtitle': typeof ApiPublicSubtitleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/search': typeof SearchRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/tutorial': typeof TutorialRoute
+  '/category/$slug': typeof CategorySlugRoute
+  '/luganda/$id': typeof LugandaIdRoute
+  '/luo/$id': typeof LuoIdRoute
+  '/pay/$id': typeof PayIdRoute
+  '/watch/$id': typeof WatchIdRoute
+  '/luganda/': typeof LugandaIndexRoute
+  '/luo/': typeof LuoIndexRoute
+  '/api/public/movie': typeof ApiPublicMovieRoute
+  '/api/public/stream': typeof ApiPublicStreamRoute
+  '/api/public/subtitle': typeof ApiPublicSubtitleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/search'
+    | '/sitemap.xml'
+    | '/tutorial'
+    | '/category/$slug'
+    | '/luganda/$id'
+    | '/luo/$id'
+    | '/pay/$id'
+    | '/watch/$id'
+    | '/luganda/'
+    | '/luo/'
+    | '/api/public/movie'
+    | '/api/public/stream'
+    | '/api/public/subtitle'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin'
+    | '/search'
+    | '/sitemap.xml'
+    | '/tutorial'
+    | '/category/$slug'
+    | '/luganda/$id'
+    | '/luo/$id'
+    | '/pay/$id'
+    | '/watch/$id'
+    | '/luganda'
+    | '/luo'
+    | '/api/public/movie'
+    | '/api/public/stream'
+    | '/api/public/subtitle'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/search'
+    | '/sitemap.xml'
+    | '/tutorial'
+    | '/category/$slug'
+    | '/luganda/$id'
+    | '/luo/$id'
+    | '/pay/$id'
+    | '/watch/$id'
+    | '/luganda/'
+    | '/luo/'
+    | '/api/public/movie'
+    | '/api/public/stream'
+    | '/api/public/subtitle'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  SearchRoute: typeof SearchRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TutorialRoute: typeof TutorialRoute
+  CategorySlugRoute: typeof CategorySlugRoute
+  LugandaIdRoute: typeof LugandaIdRoute
+  LuoIdRoute: typeof LuoIdRoute
+  PayIdRoute: typeof PayIdRoute
+  WatchIdRoute: typeof WatchIdRoute
+  LugandaIndexRoute: typeof LugandaIndexRoute
+  LuoIndexRoute: typeof LuoIndexRoute
+  ApiPublicMovieRoute: typeof ApiPublicMovieRoute
+  ApiPublicStreamRoute: typeof ApiPublicStreamRoute
+  ApiPublicSubtitleRoute: typeof ApiPublicSubtitleRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +234,123 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tutorial': {
+      id: '/tutorial'
+      path: '/tutorial'
+      fullPath: '/tutorial'
+      preLoaderRoute: typeof TutorialRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/category/$slug': {
+      id: '/category/$slug'
+      path: '/category/$slug'
+      fullPath: '/category/$slug'
+      preLoaderRoute: typeof CategorySlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/luganda/': {
+      id: '/luganda/'
+      path: '/luganda'
+      fullPath: '/luganda/'
+      preLoaderRoute: typeof LugandaIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/luganda/$id': {
+      id: '/luganda/$id'
+      path: '/luganda/$id'
+      fullPath: '/luganda/$id'
+      preLoaderRoute: typeof LugandaIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/luo/': {
+      id: '/luo/'
+      path: '/luo'
+      fullPath: '/luo/'
+      preLoaderRoute: typeof LuoIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/luo/$id': {
+      id: '/luo/$id'
+      path: '/luo/$id'
+      fullPath: '/luo/$id'
+      preLoaderRoute: typeof LuoIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pay/$id': {
+      id: '/pay/$id'
+      path: '/pay/$id'
+      fullPath: '/pay/$id'
+      preLoaderRoute: typeof PayIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/watch/$id': {
+      id: '/watch/$id'
+      path: '/watch/$id'
+      fullPath: '/watch/$id'
+      preLoaderRoute: typeof WatchIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/movie': {
+      id: '/api/public/movie'
+      path: '/api/public/movie'
+      fullPath: '/api/public/movie'
+      preLoaderRoute: typeof ApiPublicMovieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/stream': {
+      id: '/api/public/stream'
+      path: '/api/public/stream'
+      fullPath: '/api/public/stream'
+      preLoaderRoute: typeof ApiPublicStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/subtitle': {
+      id: '/api/public/subtitle'
+      path: '/api/public/subtitle'
+      fullPath: '/api/public/subtitle'
+      preLoaderRoute: typeof ApiPublicSubtitleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  SearchRoute: SearchRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TutorialRoute: TutorialRoute,
+  CategorySlugRoute: CategorySlugRoute,
+  LugandaIdRoute: LugandaIdRoute,
+  LuoIdRoute: LuoIdRoute,
+  PayIdRoute: PayIdRoute,
+  WatchIdRoute: WatchIdRoute,
+  LugandaIndexRoute: LugandaIndexRoute,
+  LuoIndexRoute: LuoIndexRoute,
+  ApiPublicMovieRoute: ApiPublicMovieRoute,
+  ApiPublicStreamRoute: ApiPublicStreamRoute,
+  ApiPublicSubtitleRoute: ApiPublicSubtitleRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
