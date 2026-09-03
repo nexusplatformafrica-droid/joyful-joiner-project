@@ -103,6 +103,20 @@ export function NotifyTab() {
     ? `${content.title}${content.episode ? ` (${content.episode})` : ""}`
     : "a new title";
 
+  // Up to 4 other library titles shown as recommendations in the email.
+  const recommendations: NotifyContent[] = useMemo(
+    () =>
+      (titles.data ?? [])
+        .filter((t) => t.id !== titleId && t.poster_url)
+        .slice(0, 4)
+        .map((t) => ({
+          title: t.title,
+          posterUrl: t.poster_url,
+          link: `${SITE_URL}/${t.language === "luganda" ? "luganda" : "luo"}/${t.id}`,
+        })),
+    [titles.data, titleId],
+  );
+
   const rows = useMemo(() => {
     const list = (people.data ?? []).filter(channel === "email" ? hasEmail : hasPhone);
     const t = q.trim().toLowerCase();
@@ -142,7 +156,7 @@ export function NotifyTab() {
         const text = render(u).replace(/\*/g, "");
         return {
           email: u.email!,
-          html: renderNotifyEmail({ name, heading: subject, body: text, content }),
+          html: renderNotifyEmail({ name, heading: subject, body: text, content, recommendations }),
           text: renderNotifyText({ name, body: text, content }),
         };
       });
