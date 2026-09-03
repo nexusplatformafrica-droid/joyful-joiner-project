@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import {
-  catalogDownloadUrl,
   formatBytes,
   mediaDownloadUrl,
   mediaProbeUrl,
@@ -9,6 +8,8 @@ import {
   subtitleDownloadUrl,
 } from "@/lib/download";
 import { useSubscription } from "@/hooks/useSubscription";
+import { downloadCatalogMovie, type DownloadProgress } from "@/lib/catalog-download";
+import { toast } from "sonner";
 
 type StreamSource = {
   id: string;
@@ -45,6 +46,46 @@ export function DownloadDialog({
 }: Props) {
   const { subscribed, requireSubscription } = useSubscription();
   const [probed, setProbed] = useState<Record<string, number | null>>({});
+  const [job, setJob] = useState<{ id: string; progress: DownloadProgress | null } | null>(null);
+  const abort = useRef<AbortController | null>(null);
+
+  useEffect(() => () => abort.current?.abort(), []);
+
+  // Cloudflare Workers cap the number of upstream requests per invocation, so a
+  // full movie can never be rebuilt server-side (that failure is what saved as
+  // a .txt file). The CDN allows cross-origin reads, so the browser fetches the
+  // segments and writes the finished MP4 straight to disk.
+  const startCatalogDownload = async (source: StreamSource, filename: string) => {
+    if (!catalogId) return;
+    if (!requireSubscription()) {
+      onClose();
+      return;
+    }
+    if (job) return;
+    const controller = new AbortController();
+    abort.current = controller;
+    setJob({ id: source.id, progress: null });
+    try {
+      await downloadCatalogMovie({
+        subjectId: catalogId,
+        season,
+        episode,
+        resolution: source.resolution,
+        filename: `${filename}.mp4`,
+        signal: controller.signal,
+        onProgress: (progress) => setJob({ id: source.id, progress }),
+      });
+      toast.success("Download saved");
+      onClose();
+    } catch (err) {
+      if ((err as { name?: string })?.name !== "AbortError") {
+        toast.error(err instanceof Error ? err.message : "Download failed");
+      }
+    } finally {
+      abort.current = null;
+      setJob(null);
+    }
+  };
 
   // Real sizes come from our relay (the CDNs block cross-origin HEAD), and the
   // probe also exposes provider files that are only a short promo clip rather
@@ -130,25 +171,27 @@ export function DownloadDialog({
               {videos.map((source) => {
                 const label = `${baseName}.${source.resolution || "auto"}p`;
                 if (catalogId) {
-                  // Server rebuilds the signed stream into one MP4 and answers
-                  // with an attachment, so the browser's own download manager
-                  // saves the file — nothing is buffered in the page.
+                  const active = job?.id === source.id ? job.progress : null;
                   return (
-                    <a
+                    <button
                       key={source.id}
+                      type="button"
                       data-tour="quality"
-                      href={catalogDownloadUrl(catalogId, season, episode, source.resolution, label)}
-                      download
-                      onClick={guard}
+                      disabled={!!job && job.id !== source.id}
+                      onClick={() => void startCatalogDownload(source, label)}
                       className={tile}
                     >
                       <span className="text-sm font-bold text-foreground">
                         {source.resolution ? `${source.resolution}P` : "AUTO"}
                       </span>
                       <span className="text-[11px] text-muted-foreground">
-                        {formatBytes(source.bytes ?? null) ?? source.size ?? "Full movie"}
+                        {job?.id === source.id
+                          ? active
+                            ? `${Math.round(active.ratio * 100)}% · ${formatBytes(active.bytes) ?? ""}`
+                            : "Starting…"
+                          : (formatBytes(source.bytes ?? null) ?? source.size ?? "Full movie")}
                       </span>
-                    </a>
+                    </button>
                   );
                 }
                 return blobDownload ? (
