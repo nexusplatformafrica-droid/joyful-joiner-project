@@ -34,7 +34,7 @@ const payload = z.object({
   recipients: z
     .array(z.object({ phone: z.string().min(6), message: z.string().min(1).max(900) }))
     .min(1)
-    .max(200),
+    .max(2000),
 });
 
 export type SendResult = {
