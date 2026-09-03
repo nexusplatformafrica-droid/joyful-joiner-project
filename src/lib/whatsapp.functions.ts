@@ -264,12 +264,12 @@ export const sendWhatsappBlast = createServerFn({ method: "POST" })
           }
         : null;
 
-    const gwUrl = process.env["WHATSAPP_GATEWAY_URL"];
+    const gwUrl = GATEWAY_CONFIG.url || process.env["WHATSAPP_GATEWAY_URL"] || "";
     const gateway: Gateway = gwUrl
       ? {
           url: gwUrl,
-          token: process.env["WHATSAPP_GATEWAY_TOKEN"] || undefined,
-          session: process.env["WHATSAPP_GATEWAY_SESSION"] || "default",
+          token: GATEWAY_CONFIG.token || process.env["WHATSAPP_GATEWAY_TOKEN"] || undefined,
+          session: GATEWAY_CONFIG.session || process.env["WHATSAPP_GATEWAY_SESSION"] || "default",
         }
       : null;
 
