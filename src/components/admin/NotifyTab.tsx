@@ -262,10 +262,10 @@ export function NotifyTab() {
               ))}
             </ul>
             <p className="mt-3 text-[11px] leading-relaxed opacity-60">
-              Automatic sending works for numbers that have activated the free CallMeBot bot. Ask the
-              user to send “I allow callmebot to send me messages” to +34 644 51 95 23 on WhatsApp,
-              then add the returned apikey in <code>src/lib/whatsapp.functions.ts</code>.
+              Fully automatic sending uses the WhatsApp Cloud API once its keys are saved — no action
+              needed from your users. Anything it can’t deliver falls back to one-tap chat links here.
             </p>
+
           </Panel>
         )}
       </div>
