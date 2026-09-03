@@ -458,10 +458,12 @@ export async function fetchDetails(subjectId: string): Promise<TitleDetails> {
   let seasons: { season: number; episodes: number }[] = [];
   if (base.type === "series") {
     try {
+      // season-info/v2 (APK 4.0.02.0831.02); v1 kept as a fallback.
       const info = await request(
         "GET",
-        `/wefeed-mobile-bff/subject-api/season-info?subjectId=${subjectId}`,
-      );
+        `${API_PREFIX}/subject-api/season-info/v2?subjectId=${subjectId}&isVip=0`,
+      ).catch(() => request("GET", `${API_PREFIX}/subject-api/season-info?subjectId=${subjectId}`));
+
       const list: any[] = Array.isArray(info?.seasons) ? info.seasons : Array.isArray(info) ? info : [];
       seasons = list
         .map((s) => ({
