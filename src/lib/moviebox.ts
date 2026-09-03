@@ -794,7 +794,18 @@ export async function fetchPlayback(
         res ??
         (await request("GET", `${API_PREFIX}/subject-api/play-info?${query}`).catch(() => null as any)),
     );
-  const stream = Array.isArray(data?.streams) ? data.streams[0] : null;
+  // Never take streams[0] blindly — the provider often puts the short
+  // "upgrade your app" promo clip first. Keep only signed entries and prefer
+  // the longest/highest-resolution one, which is always the real title.
+  const candidates: any[] = (Array.isArray(data?.streams) ? data.streams : []).filter(
+    (s: any) => typeof s?.signCookie === "string" && s.signCookie.includes("CloudFront-Policy"),
+  );
+  const bestRes = (s: any) =>
+    Math.max(0, ...String(s?.resolutions ?? "").split(",").map(Number).filter((n) => n > 0), 0);
+  const stream =
+    candidates.sort(
+      (a, b) => (Number(b?.duration) || 0) - (Number(a?.duration) || 0) || bestRes(b) - bestRes(a),
+    )[0] ?? null;
 
 
   const cookie: string = stream?.signCookie ?? "";
