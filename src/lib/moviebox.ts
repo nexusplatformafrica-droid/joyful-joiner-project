@@ -845,3 +845,35 @@ export async function fetchPlayback(
     codec: stream?.codecName ? String(stream.codecName) : null,
   };
 }
+
+/* ------------------------------------------------------------------------- *
+ * Download lifecycle (APK 4.0.02.0831.02)
+ *
+ * `start-download-resource` is the authorization/accounting step and
+ * `finish-download-resource` must only be sent after the media transfer
+ * completes successfully. Neither call carries the media bytes.
+ * ------------------------------------------------------------------------- */
+
+type DownloadItem = { subjectId: string; resourceId: string; episode: number };
+
+function downloadBody(subjectId: string, resourceId: string, episode = 0) {
+  return { items: [{ subjectId, resourceId, episode }] satisfies DownloadItem[] };
+}
+
+/** Authorize/announce a download. Never blocks the transfer on failure. */
+export async function startDownload(subjectId: string, resourceId: string, episode = 0) {
+  return request(
+    "POST",
+    `${API_PREFIX}/subject-api/start-download-resource`,
+    downloadBody(subjectId, resourceId, episode),
+  ).catch(() => null);
+}
+
+/** Report a completed transfer. Call only after the bytes were delivered. */
+export async function finishDownload(subjectId: string, resourceId: string, episode = 0) {
+  return request(
+    "POST",
+    `${API_PREFIX}/subject-api/finish-download-resource`,
+    downloadBody(subjectId, resourceId, episode),
+  ).catch(() => null);
+}
