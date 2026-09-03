@@ -200,7 +200,7 @@ function HomePage() {
 
           {!!trending.length && (
             <div className="relative z-10 pl-3 sm:pl-4 lg:pl-8">
-              <Rail title="Trending now" items={trending} ranked />
+              <Rail title="Trending now" items={trending} ranked priority />
             </div>
           )}
 

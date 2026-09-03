@@ -7,10 +7,12 @@ export function Rail({
   title,
   items,
   ranked = false,
+  priority = false,
 }: {
   title?: string;
   items: CatalogItem[];
   ranked?: boolean;
+  priority?: boolean;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   if (!items.length) return null;
@@ -30,7 +32,12 @@ export function Rail({
           className="scrollbar-none flex gap-3 overflow-x-auto scroll-smooth pb-1 pr-2 sm:pr-4"
         >
           {items.map((item, i) => (
-            <MediaCard key={item.id} item={item} {...(ranked ? { rank: i + 1 } : {})} />
+            <MediaCard
+              key={item.id}
+              item={item}
+              priority={priority && i < 8}
+              {...(ranked ? { rank: i + 1 } : {})}
+            />
           ))}
         </div>
         <button
