@@ -175,10 +175,12 @@ export function WalletTab() {
       void qc.invalidateQueries({ queryKey: ["admin-wallet"] });
       void qc.invalidateQueries({ queryKey: ["admin-overview"] });
       void qc.invalidateQueries({ queryKey: ["relworx-balance"] });
+      void qc.invalidateQueries({ queryKey: ["relworx-balances"] });
       void qc.invalidateQueries({ queryKey: ["relworx-transactions"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   return (
     <div className="space-y-5">
