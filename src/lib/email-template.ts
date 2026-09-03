@@ -103,7 +103,7 @@ export function renderNotifyEmail(opts: {
 
   const card = c
     ? heroCard(c)
-    : `<p style="margin:24px 0;">${btn(c?.link || SITE_URL, opts.ctaLabel || "Watch now", `linear-gradient(135deg,${BRAND},${BRAND_DEEP})`, PLAY_ICON)}</p>`;
+    : `<p style="margin:24px 0;">${btn(SITE_URL, opts.ctaLabel || "Watch now", `linear-gradient(135deg,${BRAND},${BRAND_DEEP})`, PLAY_ICON)}</p>`;
 
   const recs = (opts.recommendations ?? []).filter((r) => r.title && r.title !== c?.title);
 
