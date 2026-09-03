@@ -17,6 +17,7 @@ import { DevToolsGuard } from "@/components/security/DevToolsGuard";
 import { WhatsAppPrompt } from "@/components/youku/WhatsAppPrompt";
 import { DownloadTour } from "@/components/luo/DownloadTour";
 import { LiveSync } from "@/components/LiveSync";
+import { RouteProgress } from "@/components/youku/RouteProgress";
 
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
@@ -136,6 +137,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <LiveSync />
+      <RouteProgress />
       <AuthProvider>
         <SubscriptionProvider>
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
