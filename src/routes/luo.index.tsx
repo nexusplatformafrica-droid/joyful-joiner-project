@@ -39,14 +39,13 @@ export const Route = createFileRoute("/luo/")({
       ],
     };
   },
-  validateSearch: (search: Record<string, unknown>) => ({
-    vj: typeof search.vj === "string" ? search.vj : "",
-  }),
+  validateSearch: (search: Record<string, unknown>): { vj?: string } =>
+    typeof search["vj"] === "string" && search["vj"] ? { vj: search["vj"] } : {},
   component: LuoPage,
 });
 
 function LuoPage() {
-  const { vj } = Route.useSearch();
+  const { vj = "" } = Route.useSearch();
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
