@@ -1,24 +1,25 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { listLuoTitles, type LuoLanguage } from "@/lib/luo";
+import { listLuoTitles, type LuoLanguage, type LuoTitle } from "@/lib/luo";
+import { availableVjs, matchesVj } from "@/lib/vj";
 
 type Tile = {
   label: string;
   to: "/luo" | "/luganda";
   language: LuoLanguage;
-  /** Prefer a poster whose VJ field matches this needle, when present. */
-  vj?: string;
-  /** Per-tile gradient: [border, overlay]. */
+  /** Canonical VJ key ("" for a whole library). */
+  vjKey: string;
   ring: string;
   overlay: string;
   glow: string;
 };
 
-const TILES: Tile[] = [
+const LIBRARIES: Tile[] = [
   {
     label: "LUO MOVIES",
     to: "/luo",
     language: "luo",
+    vjKey: "",
     ring: "from-amber-400 via-orange-500 to-rose-500",
     overlay: "from-amber-950/90 via-orange-950/50 to-transparent",
     glow: "group-hover:shadow-[0_8px_30px_-6px_rgba(249,115,22,0.45)]",
@@ -27,33 +28,16 @@ const TILES: Tile[] = [
     label: "LUGANDA MOVIES",
     to: "/luganda",
     language: "luganda",
+    vjKey: "",
     ring: "from-emerald-400 via-teal-500 to-cyan-500",
     overlay: "from-emerald-950/90 via-teal-950/50 to-transparent",
     glow: "group-hover:shadow-[0_8px_30px_-6px_rgba(20,184,166,0.45)]",
   },
-  {
-    label: "VJ SENIOR PAUL",
-    to: "/luo",
-    language: "luo",
-    vj: "paul",
-    ring: "from-fuchsia-400 via-purple-500 to-indigo-500",
-    overlay: "from-purple-950/90 via-fuchsia-950/50 to-transparent",
-    glow: "group-hover:shadow-[0_8px_30px_-6px_rgba(168,85,247,0.45)]",
-  },
-  {
-    label: "VJ JUNIOR",
-    to: "/luganda",
-    language: "luganda",
-    vj: "junior",
-    ring: "from-sky-400 via-blue-500 to-violet-500",
-    overlay: "from-blue-950/90 via-sky-950/50 to-transparent",
-    glow: "group-hover:shadow-[0_8px_30px_-6px_rgba(59,130,246,0.45)]",
-  },
 ];
 
 /**
- * Poster-backed shortcut rail: Luo / Luganda libraries and their VJs.
- * Backgrounds are pulled live from each language's own library page.
+ * Poster-backed shortcut rail: the Luo / Luganda libraries plus every VJ that
+ * actually has titles online. Tapping a VJ opens that library filtered to them.
  */
 export function VjRail() {
   const luo = useQuery({
@@ -67,13 +51,26 @@ export function VjRail() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const rows = (lang: LuoLanguage) => (lang === "luo" ? luo.data : luganda.data) ?? [];
+
+  const vjTiles: Tile[] = (["luo", "luganda"] as LuoLanguage[]).flatMap((language) =>
+    availableVjs(rows(language)).map((v) => ({
+      label: v.name.toUpperCase(),
+      to: (language === "luo" ? "/luo" : "/luganda") as Tile["to"],
+      language,
+      vjKey: v.key,
+      ring: v.gradient,
+      overlay: v.overlay,
+      glow: v.glow,
+    })),
+  );
+
+  const tiles = [...LIBRARIES, ...vjTiles];
+
   const pick = (tile: Tile, index: number) => {
-    const rows = (tile.language === "luo" ? luo.data : luganda.data) ?? [];
-    const withArt = rows.filter((t) => t.poster_url || t.backdrop_url);
-    const matched = tile.vj
-      ? withArt.filter((t) => (t.vj ?? "").toLowerCase().includes(tile.vj!))
-      : [];
-    const pool = matched.length ? matched : withArt;
+    const pool = rows(tile.language).filter(
+      (t: LuoTitle) => (t.poster_url || t.backdrop_url) && matchesVj(t.vj, tile.vjKey),
+    );
     const row = pool[index % Math.max(pool.length, 1)];
     return row?.backdrop_url ?? row?.poster_url ?? null;
   };
@@ -83,15 +80,16 @@ export function VjRail() {
       aria-label="Browse translated movies"
       className="scrollbar-none flex gap-2 overflow-x-auto px-0.5 pb-1 pt-1.5 pr-3 sm:gap-3"
     >
-      {TILES.map((tile, i) => {
+      {tiles.map((tile, i) => {
         const art = pick(tile, i);
         return (
           <div
-            key={tile.label}
+            key={`${tile.to}-${tile.vjKey || "all"}`}
             className={`shrink-0 rounded-[14px] bg-gradient-to-br p-[1.5px] transition-shadow duration-300 sm:rounded-[18px] ${tile.ring} ${tile.glow}`}
           >
             <Link
               to={tile.to}
+              search={{ vj: tile.vjKey }}
               className="group relative block h-[64px] w-[132px] overflow-hidden rounded-[12.5px] sm:h-[88px] sm:w-[196px] sm:rounded-[16.5px]"
             >
               {art ? (
