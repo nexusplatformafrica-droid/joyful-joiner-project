@@ -146,3 +146,15 @@ export function isValidFor(input: string, country: CountryInfo) {
   const msisdn = normalizeFor(input, country);
   return new RegExp(`^\\+${country.dial}\\d{${country.localLength}}$`).test(msisdn);
 }
+
+/** CDN flag image for a country (used where the emoji flag renders poorly). */
+export function flagUrl(country: CountryInfo, width: 20 | 40 | 80 = 40) {
+  return `https://flagcdn.com/w${width}/${country.code.toLowerCase()}.png`;
+}
+
+/** Human phone format hint, e.g. "+256 7XX XXX XXX". */
+export function phoneFormat(country: CountryInfo) {
+  const body = "X".repeat(country.localLength).replace(/^X/, "7");
+  const grouped = body.match(/.{1,3}/g)?.join(" ") ?? body;
+  return `+${country.dial} ${grouped}`;
+}
