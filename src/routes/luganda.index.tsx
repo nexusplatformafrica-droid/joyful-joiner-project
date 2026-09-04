@@ -39,10 +39,13 @@ export const Route = createFileRoute("/luganda/")({
       ],
     };
   },
+  validateSearch: (search: Record<string, unknown>): { vj?: string } =>
+    typeof search["vj"] === "string" && search["vj"] ? { vj: search["vj"] } : {},
   component: LugandaPage,
 });
 
 function LugandaPage() {
+  const { vj = "" } = Route.useSearch();
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
@@ -68,7 +71,7 @@ function LugandaPage() {
             </span>
           </Link>
           <div className="mt-4">
-            <LuoLibrary language="luganda" />
+            <LuoLibrary language="luganda" vj={vj} />
           </div>
         </main>
       </div>

@@ -29,8 +29,10 @@ import {
   convertPrice,
   countryByCode,
   countryFromPhone,
+  flagUrl,
   formatAmount,
   isValidFor,
+  phoneFormat,
   priceNotice,
 } from "@/lib/countries";
 import type { Row } from "@/lib/fdb";
@@ -330,6 +332,20 @@ export function SubscribeModal({
                   </span>
                 ))}
               </div>
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-black/10 pt-3 text-[12px]">
+                <span className="flex items-center gap-1.5 font-semibold">
+                  <img
+                    src={flagUrl(country)}
+                    alt=""
+                    className="h-[13px] w-[20px] rounded-[2px] object-cover ring-1 ring-black/10"
+                  />
+                  {country.name} · {formatAmount(localPrice, country.currency)}
+                </span>
+                <span className="opacity-70">
+                  Number format: <span className="font-semibold">{phoneFormat(country)}</span>
+                </span>
+                <span className="opacity-70">{country.providers.join(" · ")}</span>
+              </div>
             </div>
           </div>
 
@@ -356,7 +372,14 @@ export function SubscribeModal({
                           : "bg-white/70 opacity-70 ring-1 ring-black/5 hover:opacity-100"
                       }`}
                     >
-                      <span className="mr-1">{c.flag}</span>
+                      <img
+                        src={flagUrl(c)}
+                        alt=""
+                        width={18}
+                        height={12}
+                        loading="eager"
+                        className="mr-1 inline-block h-[12px] w-[18px] rounded-[2px] object-cover align-[-1px] ring-1 ring-black/10"
+                      />
                       {c.short}
                     </button>
                   ))}
@@ -405,7 +428,12 @@ export function SubscribeModal({
               {phase === "phone" && (
                 <div className="mt-2 sm:mt-4">
                   <label className="text-[11px] font-semibold opacity-70">
-                    {country.flag} {country.name} mobile money number
+                    <img
+                      src={flagUrl(country)}
+                      alt=""
+                      className="mr-1 inline-block h-[12px] w-[18px] rounded-[2px] object-cover align-[-1px] ring-1 ring-black/10"
+                    />
+                    {country.name} mobile money number
                   </label>
                   <input
                     value={phone}

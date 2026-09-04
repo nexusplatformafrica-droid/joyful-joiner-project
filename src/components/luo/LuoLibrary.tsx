@@ -8,8 +8,9 @@ import {
   type LuoLanguage,
   type LuoTitle,
 } from "@/lib/luo";
+import { matchesVj, vjInfo } from "@/lib/vj";
 
-export function LuoLibrary({ language }: { language: LuoLanguage }) {
+export function LuoLibrary({ language, vj = "" }: { language: LuoLanguage; vj?: string }) {
   const q = useQuery({
     queryKey: ["luo-titles", language],
     queryFn: () => listLuoTitles(language),
@@ -35,7 +36,9 @@ export function LuoLibrary({ language }: { language: LuoLanguage }) {
   const activity = (t: LuoTitle) =>
     Math.max(Date.parse(t.created_at) || 0, lastEpisodeAt.get(t.id) ?? 0);
 
-  const items = [...(q.data ?? [])].sort((a, b) => activity(b) - activity(a));
+  const items = [...(q.data ?? [])]
+    .filter((t) => matchesVj(t.vj, vj))
+    .sort((a, b) => activity(b) - activity(a));
 
   // Some legacy episode docs have no timestamp at all. For a recently active
   // series we still tag its two newest episode numbers so the badge shows.
@@ -125,11 +128,18 @@ export function LuoLibrary({ language }: { language: LuoLanguage }) {
                           {item.title}
                         </div>
                       )}
+                      {vjInfo(item.vj) && (
+                        <span
+                          className={`absolute left-0 top-0 max-w-[86%] truncate rounded-br-lg bg-gradient-to-r px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-[0_2px_8px_-2px_rgba(0,0,0,0.7)] sm:text-[10px] ${vjInfo(item.vj)!.gradient}`}
+                        >
+                          {vjInfo(item.vj)!.name}
+                        </span>
+                      )}
                       <span className="absolute right-1 top-1 rounded bg-brand px-1.5 py-0.5 text-[10px] font-black uppercase text-brand-foreground">
                         {item.kind === "series" ? "Series" : "Movie"}
                       </span>
                       {eps?.length ? (
-                        <span className="absolute left-1 top-1 rounded bg-emerald-500 px-1.5 py-0.5 text-[10px] font-black uppercase text-black">
+                        <span className="absolute bottom-6 left-1 rounded bg-emerald-500 px-1.5 py-0.5 text-[10px] font-black uppercase text-black">
                           EP {eps.join(", ")}
                         </span>
                       ) : null}
