@@ -89,7 +89,7 @@ export function VjRail() {
           >
             <Link
               to={tile.to}
-              search={{ vj: tile.vjKey }}
+              search={tile.vjKey ? { vj: tile.vjKey } : {}}
               className="group relative block h-[64px] w-[132px] overflow-hidden rounded-[12.5px] sm:h-[88px] sm:w-[196px] sm:rounded-[16.5px]"
             >
               {art ? (
