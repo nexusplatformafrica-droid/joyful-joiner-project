@@ -7,6 +7,7 @@
  * IPs the catalog blocks — the shell renders, the browser fills in the data.
  */
 import {
+  fetchAudioVariants,
   fetchDetails,
   fetchRelated,
   fetchHome,
@@ -14,6 +15,7 @@ import {
   fetchPlayback,
   searchCatalog,
   unavailableTitle,
+  type AudioVariant,
   type CatalogItem,
   type StreamSource,
   type Playback,
@@ -100,5 +102,18 @@ export async function getPlayback({
   } catch (error) {
     console.error(error);
     return null;
+  }
+}
+
+export async function getAudioVariants({
+  data,
+}: {
+  data: { id: string; title: string; type: "movie" | "series" };
+}): Promise<AudioVariant[]> {
+  try {
+    return await fetchAudioVariants(data);
+  } catch (error) {
+    console.error(error);
+    return [];
   }
 }

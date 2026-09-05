@@ -10,6 +10,7 @@ import { getLuoTitle, listEpisodes, listLuoTitles, type LuoLanguage } from "@/li
 import { SubscribeGate } from "@/components/youku/SubscribeGate";
 import { useSubscription } from "@/hooks/useSubscription";
 import { TitleActions } from "@/components/youku/TitleActions";
+import { vjInfo } from "@/lib/vj";
 
 import { WatchSkeleton } from "@/components/youku/Skeletons";
 
@@ -80,6 +81,7 @@ export function LuoWatch({ id, language }: { id: string; language: LuoLanguage }
           year: t.year ? String(t.year) : null,
           genre: t.genre,
           rating: null,
+          vj: t.vj ?? null,
         })),
     [siblings.data, id, data?.genre, data?.kind],
   );
@@ -261,6 +263,7 @@ type RelatedItem = {
   type: "series" | "movie";
   year: string | null;
   genre: string | null;
+  vj?: string | null;
 };
 
 /** Grid of related posters, reused for the mobile and desktop placements. */
@@ -278,6 +281,7 @@ function RelatedGrid({ items, language }: { items: RelatedItem[]; language: LuoL
             poster={item.poster}
             label={item.title}
             badge={item.type === "series" ? "Series" : "Movie"}
+            vj={item.vj ?? null}
             meta={[item.year, item.genre].filter(Boolean).join(" · ")}
           />
         </Link>
@@ -292,12 +296,15 @@ function MediaCardShell({
   label,
   badge,
   meta,
+  vj,
 }: {
   poster: string;
   label: string;
   badge: string;
   meta: string;
+  vj?: string | null;
 }) {
+  const tag = vjInfo(vj);
   return (
     <div className="group">
       <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-muted ring-1 ring-border transition-transform duration-200 group-hover:-translate-y-1 group-hover:ring-brand">
@@ -307,6 +314,13 @@ function MediaCardShell({
           <div className="grid size-full place-items-center px-2 text-center text-sm text-muted-foreground">
             {label}
           </div>
+        )}
+        {tag && (
+          <span
+            className={`absolute left-0 top-0 max-w-[86%] truncate rounded-br-lg bg-gradient-to-r px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-[0_2px_8px_-2px_rgba(0,0,0,0.7)] sm:text-[10px] ${tag.gradient}`}
+          >
+            {tag.name}
+          </span>
         )}
         <span
           className={`absolute right-1 top-1 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase leading-tight ${
