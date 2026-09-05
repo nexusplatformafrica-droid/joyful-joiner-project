@@ -888,3 +888,136 @@ export async function finishDownload(subjectId: string, resourceId: string, epis
     downloadBody(subjectId, resourceId, episode),
   ).catch(() => null);
 }
+
+/* ------------------------------------------------------------------------- *
+ * Audio language variants
+ *
+ * The provider publishes each dub as its own subject ("Movie [Hindi]"), and
+ * play-info only ever returns the single stream that belongs to the subject
+ * that was asked for. So "this movie only plays in Hindi" means the user
+ * landed on the Hindi subject. We look the title up again, label every
+ * matching subject with the language its resources advertise and let the
+ * player switch between them — defaulting to the original-language one.
+ * ------------------------------------------------------------------------- */
+
+export type AudioVariant = {
+  /** Subject id to play for this language. */
+  id: string;
+  language: string;
+  /** True for the untagged / original-language release. */
+  original: boolean;
+};
+
+const LANGUAGES: [RegExp, string][] = [
+  [/hindi|hin\b/i, "Hindi"],
+  [/tamil/i, "Tamil"],
+  [/telugu/i, "Telugu"],
+  [/malayalam/i, "Malayalam"],
+  [/kannada/i, "Kannada"],
+  [/bengali/i, "Bengali"],
+  [/punjabi/i, "Punjabi"],
+  [/urdu/i, "Urdu"],
+  [/arabic/i, "Arabic"],
+  [/spanish|espanol|español|latino/i, "Spanish"],
+  [/french|francais|français|vf\b/i, "French"],
+  [/portuguese|dublado/i, "Portuguese"],
+  [/german|deutsch/i, "German"],
+  [/italian/i, "Italian"],
+  [/russian/i, "Russian"],
+  [/turkish/i, "Turkish"],
+  [/korean/i, "Korean"],
+  [/japanese/i, "Japanese"],
+  [/chinese|mandarin|cantonese/i, "Chinese"],
+  [/thai/i, "Thai"],
+  [/indonesian/i, "Indonesian"],
+  [/swahili|kiswahili/i, "Swahili"],
+  [/luganda/i, "Luganda"],
+  [/yoruba/i, "Yoruba"],
+  [/hausa/i, "Hausa"],
+  [/english|eng\b/i, "English"],
+];
+
+/** Pull a dub language out of a subject/resource title, if it advertises one. */
+export function detectAudioLanguage(text: string): string | null {
+  if (/dual\s*audio|multi\s*audio/i.test(text)) return "Dual Audio";
+  // Only trust bracketed / parenthesised tags plus explicit "dubbed" wording,
+  // so a movie literally called "The French Dispatch" is not mislabelled.
+  const tags = [...text.matchAll(/[[(]([^\])]{2,30})[\])]/g)].map((m) => m[1] ?? "");
+  if (/dubbed/i.test(text)) tags.push(text);
+  for (const tag of tags) {
+    for (const [pattern, name] of LANGUAGES) if (pattern.test(tag)) return name;
+  }
+  return null;
+}
+
+const variantKey = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[[(][^\])]*[\])]/g, " ")
+    .replace(/\b(19|20)\d{2}\b/g, " ")
+    .replace(/[^a-z0-9]+/g, "");
+
+/** Language of a subject, read from its own title and its resource titles. */
+async function subjectLanguage(subjectId: string, rawTitle: string): Promise<string | null> {
+  const fromTitle = detectAudioLanguage(rawTitle);
+  if (fromTitle) return fromTitle;
+  const res = await request(
+    "GET",
+    `${API_PREFIX}/subject-api/resource/v2?subjectId=${subjectId}&page=1&perPage=10`,
+  ).catch(() => null as any);
+  const list: any[] = Array.isArray(res?.list) ? res.list : [];
+  for (const entry of list) {
+    const found = detectAudioLanguage(`${entry?.title ?? ""} ${entry?.sourceUrl ?? ""}`);
+    if (found) return found;
+  }
+  return null;
+}
+
+export async function fetchAudioVariants(details: {
+  id: string;
+  title: string;
+  type: "movie" | "series";
+}): Promise<AudioVariant[]> {
+  const wanted = variantKey(details.title);
+  if (!wanted) return [];
+
+  const data = await request("POST", `${API_PREFIX}/subject-api/search/v2`, {
+    keyword: details.title,
+    page: 1,
+    perPage: 20,
+    subjectType: "All",
+    tabId: "All",
+  }).catch(() => null as any);
+
+  const subjects: { id: string; raw: string }[] = [];
+  const seen = new Set<string>();
+  for (const result of data?.results ?? []) {
+    for (const subject of result?.subjects ?? []) {
+      const id = subject?.subjectId ? String(subject.subjectId) : "";
+      const raw = subject?.title ? String(subject.title) : "";
+      const sameKind = (Number(subject?.subjectType) === 2 ? "series" : "movie") === details.type;
+      if (!id || !raw || seen.has(id) || !sameKind) continue;
+      if (variantKey(raw) !== wanted) continue;
+      seen.add(id);
+      subjects.push({ id, raw });
+    }
+  }
+  if (!seen.has(details.id)) subjects.unshift({ id: details.id, raw: details.title });
+
+  const labelled = await Promise.all(
+    subjects.slice(0, 6).map(async (s) => ({
+      id: s.id,
+      language: (await subjectLanguage(s.id, s.raw)) ?? "Original",
+    })),
+  );
+
+  // One entry per language; an untagged release is the original audio.
+  const byLanguage = new Map<string, AudioVariant>();
+  for (const entry of labelled) {
+    if (byLanguage.has(entry.language)) continue;
+    byLanguage.set(entry.language, { ...entry, original: entry.language === "Original" });
+  }
+  const variants = [...byLanguage.values()];
+  if (variants.length < 2) return [];
+  return variants.sort((a, b) => Number(b.original) - Number(a.original) || a.language.localeCompare(b.language));
+}
