@@ -7,7 +7,7 @@ import { TopBar } from "@/components/youku/TopBar";
 import { MobileNav } from "@/components/youku/MobileNav";
 import { Player } from "@/components/youku/Player";
 import { Rail } from "@/components/youku/Rail";
-import { getPlayback, getRelated, getSources, getTitle } from "@/lib/catalog.functions";
+import { getAudioVariants, getPlayback, getRelated, getSources, getTitle } from "@/lib/catalog.functions";
 import { signedDashBlobUrl } from "@/lib/dash";
 import { streamUrl, subtitleUrl } from "@/lib/download";
 import { TitleActions } from "@/components/youku/TitleActions";
@@ -121,9 +121,29 @@ function WatchPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, id]);
 
+  // Dubs live on their own subject ids upstream, so the language picker simply
+  // swaps which subject we stream from. Default: the original-language one.
+  const variants = useQuery({
+    queryKey: ["audio-variants", id],
+    queryFn: () =>
+      getAudioVariants({
+        data: { id, title: title?.title ?? "", type: title?.type ?? "movie" },
+      }),
+    staleTime: 10 * 60 * 1000,
+    enabled: ready && !!title?.title,
+  });
+  const [audioId, setAudioId] = useState<string | null>(null);
+  useEffect(() => setAudioId(null), [id]);
+  useEffect(() => {
+    const list = variants.data ?? [];
+    if (!list.length || audioId) return;
+    setAudioId((list.find((v) => v.original) ?? list[0])!.id);
+  }, [variants.data, audioId]);
+  const playId = audioId ?? id;
+
   const sources = useQuery({
-    queryKey: ["sources", id, season, episode],
-    queryFn: () => getSources({ data: { id, season, episode } }),
+    queryKey: ["sources", playId, season, episode],
+    queryFn: () => getSources({ data: { id: playId, season, episode } }),
     staleTime: 60 * 1000,
     retry: 2,
     enabled: ready,
@@ -175,8 +195,8 @@ function WatchPage() {
   // The provider's `resourceLink` is a short promo clip for most titles; the
   // real movie is a signed DASH stream served straight from its CDN.
   const playback = useQuery({
-    queryKey: ["playback", id, season, episode, active?.id],
-    queryFn: () => getPlayback({ data: { id, season, episode, resourceId: active?.id } }),
+    queryKey: ["playback", playId, season, episode, active?.id],
+    queryFn: () => getPlayback({ data: { id: playId, season, episode, resourceId: active?.id } }),
     staleTime: 60 * 1000,
     enabled: ready && !!active,
   });
@@ -296,6 +316,27 @@ function WatchPage() {
               ) : (
                 <div className="grid aspect-video w-full place-items-center rounded-[1.25rem] bg-card px-6 text-center text-sm text-muted-foreground">
                   No playable stream is available for this title right now.
+                </div>
+              )}
+
+              {(variants.data?.length ?? 0) > 1 && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                    Audio
+                  </span>
+                  {variants.data!.map((variant) => (
+                    <button
+                      key={variant.id}
+                      onClick={() => setAudioId(variant.id)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition ${
+                        variant.id === playId
+                          ? "bg-brand text-brand-foreground ring-brand"
+                          : "bg-card text-muted-foreground ring-border hover:text-foreground"
+                      }`}
+                    >
+                      {variant.original ? "Original" : variant.language}
+                    </button>
+                  ))}
                 </div>
               )}
 
