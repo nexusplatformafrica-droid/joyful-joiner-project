@@ -367,7 +367,7 @@ function WatchPage() {
                   season > 0 ? `${title.title} S${season}E${episode}` : title.title
                 }
                 shareImage={title.backdrop}
-                catalogId={id}
+                catalogId={playId}
                 season={season}
                 episode={episode}
               />
