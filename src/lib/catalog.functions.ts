@@ -11,6 +11,7 @@ import {
   fetchDetails,
   fetchRelated,
   fetchHome,
+  fetchMostTrending,
   fetchSources,
   fetchPlayback,
   searchCatalog,
@@ -112,6 +113,19 @@ export async function getAudioVariants({
 }): Promise<AudioVariant[]> {
   try {
     return await fetchAudioVariants(data);
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+}
+
+/**
+ * Trending rail: the catalog's own live trending rails from the home, movie and
+ * series tabs merged together, so it never falls back to a thin, regional list.
+ */
+export async function getTrending(): Promise<CatalogItem[]> {
+  try {
+    return await fetchMostTrending();
   } catch (error) {
     console.error(error);
     return [];
