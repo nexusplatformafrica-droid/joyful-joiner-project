@@ -10,6 +10,8 @@ import { MobileNav } from "@/components/youku/MobileNav";
 import { MediaCard } from "@/components/youku/MediaCard";
 import { GridSkeleton } from "@/components/youku/Skeletons";
 import { searchTitles } from "@/lib/catalog.functions";
+import { restListTitles } from "@/lib/luo-rest";
+import type { CatalogItem } from "@/lib/moviebox";
 
 
 export const Route = createFileRoute("/search")({
@@ -42,6 +44,42 @@ function SearchPage() {
   useEffect(() => {
     setTerm(q ?? "");
   }, [q]);
+
+  // Luo / Luganda library titles are searched too, and tagged in the grid.
+  const library = useQuery({
+    queryKey: ["library-search"],
+    queryFn: () => restListTitles(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const needle = (q ?? "").trim().toLowerCase();
+  const libraryHits = needle
+    ? (library.data ?? [])
+        .filter((t) => t.title.toLowerCase().includes(needle))
+        .slice(0, 24)
+        .map((t) => ({
+          item: {
+            id: t.id,
+            title: t.title,
+            type: "movie" as const,
+            year: null,
+            poster: t.poster,
+            backdrop: t.poster,
+            rating: null,
+            genre: null,
+            appointmentDate: null,
+            booked: null,
+          } satisfies CatalogItem,
+          to: t.language === "luganda" ? "/luganda/$id" : "/luo/$id",
+          tag: {
+            label: t.language === "luganda" ? "Luganda" : "Luo",
+            className:
+              t.language === "luganda"
+                ? "bg-gradient-to-r from-sky-500 to-blue-600"
+                : "bg-gradient-to-r from-amber-500 to-orange-600",
+          },
+        }))
+    : [];
 
   const query = useQuery({
     queryKey: ["search", q],
@@ -89,11 +127,20 @@ function SearchPage() {
               <p className="text-sm text-muted-foreground">
                 Type a movie or series name in the search bar above to get started.
               </p>
-            ) : query.isPending ? (
+            ) : query.isPending && !libraryHits.length ? (
               <GridSkeleton />
-            ) : query.data?.length ? (
+            ) : query.data?.length || libraryHits.length ? (
               <div className="grid grid-cols-3 gap-x-2 gap-y-4 sm:gap-x-3 sm:gap-y-5 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6">
-                {query.data.map((item) => (
+                {libraryHits.map((hit) => (
+                  <MediaCard
+                    key={`${hit.tag.label}-${hit.item.id}`}
+                    item={hit.item}
+                    to={hit.to}
+                    tag={hit.tag}
+                    block
+                  />
+                ))}
+                {(query.data ?? []).map((item) => (
                   <MediaCard key={item.id} item={item} block />
                 ))}
               </div>

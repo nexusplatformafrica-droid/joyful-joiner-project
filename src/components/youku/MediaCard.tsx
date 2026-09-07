@@ -7,15 +7,21 @@ export function MediaCard({
   block = false,
   rank,
   priority = false,
+  to,
+  tag,
 }: {
   item: CatalogItem;
   block?: boolean;
   rank?: number;
   priority?: boolean;
+  /** Override the destination (e.g. a Luo / Luganda library page). */
+  to?: string;
+  /** Small corner badge, e.g. LUO or LUGANDA. */
+  tag?: { label: string; className?: string };
 }) {
   return (
     <Link
-      to="/watch/$id"
+      to={(to ?? "/watch/$id") as "/watch/$id"}
       params={{ id: item.id }}
       aria-label={item.title}
       className={`group block ${block ? "w-full" : "w-[calc((100vw-3rem)/3)] shrink-0 sm:w-[168px]"}`}
@@ -37,6 +43,15 @@ export function MediaCard({
           <div className="grid size-full place-items-center px-2 text-center text-sm text-muted-foreground">
             {item.title}
           </div>
+        )}
+        {tag && (
+          <span
+            className={`absolute left-1 top-1 z-10 rounded px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-white shadow ${
+              tag.className ?? "bg-brand"
+            }`}
+          >
+            {tag.label}
+          </span>
         )}
         {typeof rank === "number" && (
           <span className="absolute left-0 top-0 rounded-br-lg bg-brand px-2 py-0.5 text-[11px] font-black text-brand-foreground">

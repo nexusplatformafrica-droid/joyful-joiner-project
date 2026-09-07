@@ -9,7 +9,8 @@ import { Rail } from "@/components/youku/Rail";
 import { RowSkeleton } from "@/components/youku/Skeletons";
 import { VjRail } from "@/components/youku/VjRail";
 import { isAdultItem } from "@/lib/categories";
-import { getHome } from "@/lib/catalog.functions";
+import { getHome, getTrending } from "@/lib/catalog.functions";
+import { balanceTrending } from "@/lib/trending-filter";
 import { HOME_SECTIONS, fetchSection } from "@/lib/home-sections";
 
 const homeQuery = queryOptions({
@@ -27,6 +28,16 @@ const homeQuery = queryOptions({
 
 
 
+
+const trendingQuery = queryOptions({
+  queryKey: ["trending-wide"],
+  queryFn: () => getTrending(),
+  staleTime: 60 * 1000,
+  refetchInterval: 3 * 60 * 1000,
+  refetchIntervalInBackground: true,
+  refetchOnWindowFocus: true,
+  refetchOnMount: "always",
+});
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -62,6 +73,7 @@ export const Route = createFileRoute("/")({
 
 function HomePage() {
   const { data, refetch } = useQuery(homeQuery);
+  const wideTrending = useQuery(trendingQuery);
   const slides = data?.hero ?? [];
   const [index, setIndex] = useState(0);
 
@@ -112,8 +124,10 @@ function HomePage() {
   })).filter((s) => s.items.length >= 4);
 
   // Real trending straight from the catalog's own trending rail.
-  const upstreamTrending = clean(data?.trending ?? []);
   const rankedSection = sections.find((s) => s.ranked);
+  const upstreamTrending = balanceTrending(
+    clean([...(wideTrending.data ?? []), ...(data?.trending ?? []), ...(rankedSection?.items ?? [])]),
+  );
   const trending = upstreamTrending.length >= 4 ? upstreamTrending : (rankedSection?.items ?? []);
   const comingSoon = clean(data?.comingSoon ?? []);
   const rails = sections.filter((s) => !s.ranked || s.items !== trending);

@@ -375,8 +375,10 @@ export async function fetchTabRows(tabId: number) {
 }
 
 /**
- * The catalog's real, live "most trending" line-up: the home trending rail plus
- * the movie and TV tabs' own trending / top-this-week rails, in that order.
+ * A broad, live "trending" line-up: the catalog's own trending rail plus the
+ * Hollywood / Western TV / Asian and in-progress-series rails, interleaved so
+ * the row is a real worldwide mix instead of one region's feed. Regional dub
+ * rails (Bollywood, South Indian, Hindi short TV…) are skipped on purpose.
  */
 export async function fetchMostTrending(): Promise<CatalogItem[]> {
   const [home, movies, series] = await Promise.all([
@@ -384,18 +386,35 @@ export async function fetchMostTrending(): Promise<CatalogItem[]> {
     fetchTabRows(2),
     fetchTabRows(5),
   ]);
+  const SKIP = /bollywood|south indian|indian|hindi|tamil|telugu|hot short tv|punjabi/i;
   const pick = (rows: { title: string; items: CatalogItem[] }[], re: RegExp) =>
-    rows.filter((r) => re.test(r.title)).flatMap((r) => r.items);
+    rows.filter((r) => re.test(r.title) && !SKIP.test(r.title)).flatMap((r) => r.items);
 
-  const ordered = [
-    ...pick(home, /trending/i),
-    ...pick(series, /top series this week|trending/i),
-    ...pick(movies, /trending|top movies/i),
-    ...pick(home, /cinema|hot short tv/i),
-  ];
+  // Each entry is one "lane"; we take one title from each lane in turn.
+  const lanes = [
+    pick(home, /trending/i),
+    pick(home, /hollywood/i),
+    pick(series, /series in progress|top series this week|trending/i),
+    pick(home, /western tv/i),
+    pick(movies, /trending|top movies|adventure|sci-fi|super hero/i),
+    pick(home, /best asian series/i),
+    pick(series, /fantasy chronicles|action hardcore/i),
+  ].filter((lane) => lane.length);
+
   const seen = new Set<string>();
-  return ordered.filter((i) => (seen.has(i.id) ? false : (seen.add(i.id), true))).slice(0, 24);
+  const out: CatalogItem[] = [];
+  const depth = Math.max(0, ...lanes.map((l) => l.length));
+  for (let i = 0; i < depth && out.length < 30; i += 1) {
+    for (const lane of lanes) {
+      const item = lane[i];
+      if (!item || seen.has(item.id)) continue;
+      seen.add(item.id);
+      out.push(item);
+    }
+  }
+  return out.slice(0, 30);
 }
+
 
 /** All live catalog rails from the movie + TV tabs, for the home page. */
 export async function fetchLiveRails() {
