@@ -130,7 +130,7 @@ export function LuoLibrary({ language, vj = "" }: { language: LuoLanguage; vj?: 
                       )}
                       {vjInfo(item.vj) && (
                         <span
-                          className={`absolute left-0 top-0 max-w-[86%] truncate rounded-br-lg bg-gradient-to-r px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-[0_2px_8px_-2px_rgba(0,0,0,0.7)] sm:text-[10px] ${vjInfo(item.vj)!.gradient}`}
+                          className={`absolute left-0 top-0 z-10 max-w-[86%] truncate rounded-br-lg bg-gradient-to-r px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-[0_2px_8px_-2px_rgba(0,0,0,0.7)] sm:text-[10px] ${vjInfo(item.vj)!.gradient}`}
                         >
                           {vjInfo(item.vj)!.name}
                         </span>
@@ -139,9 +139,11 @@ export function LuoLibrary({ language, vj = "" }: { language: LuoLanguage; vj?: 
                         {item.kind === "series" ? "Series" : "Movie"}
                       </span>
                       {eps?.length ? (
-                        <span className="absolute left-1/2 top-2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500 via-green-400 to-emerald-500 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-black shadow-[0_4px_14px_-2px_rgba(16,185,129,0.7)] ring-2 ring-black/40 sm:top-2.5 sm:text-xs">
-                          <Sparkles className="size-3" />
-                          New EP {eps.join(", ")}
+                        <span
+                          className="absolute left-0 top-[22px] z-10 flex max-w-[90%] items-center gap-1 rounded-br-lg bg-gradient-to-r from-emerald-500 via-green-400 to-emerald-500 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-black shadow-[0_2px_8px_-2px_rgba(16,185,129,0.7)] sm:top-[26px] sm:text-[10px]"
+                        >
+                          <Sparkles className="size-2.5" />
+                          EP {eps.join(", ")}
                         </span>
                       ) : null}
                       <span className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-gradient-to-t from-black/80 to-transparent px-1.5 pb-1 pt-6 text-[10px] font-semibold text-white/90">
