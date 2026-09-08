@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Play, ShieldCheck } from "lucide-react";
+import { Play, ShieldCheck, Sparkles } from "lucide-react";
 import {
   listAllEpisodes,
   listLuoTitles,
