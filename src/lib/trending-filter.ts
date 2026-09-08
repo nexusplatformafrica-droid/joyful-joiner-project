@@ -17,6 +17,17 @@ const REGIONAL_GENRE = /bollywood|indian|hindi|tollywood|kollywood|punjabi|bhojp
 const FILLER =
   /\b(hot short|short tv|mini drama|shorts?|reel|episode\s*\d+\s*only|trailer|teaser|clip|full movie in)\b/i;
 
+/** Anime / cartoon material — kept out of the live-action "Trending now" row. */
+const ANIME_GENRE = /anime|animation|animated|cartoon/i;
+const ANIME_TITLE =
+  /\b(one piece|naruto|shippuden|boruto|bleach|dragon ball|jujutsu kaisen|demon slayer|kimetsu|attack on titan|shingeki|my hero academia|hunter\s*x\s*hunter|fairy tail|black clover|tokyo revengers|chainsaw man|spy\s*x\s*family|solo leveling|sword art online|death note|jojo|haikyuu|overlord|re:zero|dr\.?\s*stone|blue lock|mashle|gintama|inuyasha|pokemon|pokémon|digimon|doraemon|shinchan|conan|kaiju no\.?\s*8|frieren|vinland saga|hells paradise|anime)\b/i;
+
+export function isAnime(item: CatalogItem) {
+  return (
+    ANIME_TITLE.test(item.title) || (!!item.genre && ANIME_GENRE.test(item.genre))
+  );
+}
+
 export function isRegionalDub(item: CatalogItem) {
   return DUB_TAG.test(item.title) || (!!item.genre && REGIONAL_GENRE.test(item.genre));
 }
