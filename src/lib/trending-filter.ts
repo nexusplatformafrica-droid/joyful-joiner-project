@@ -39,7 +39,7 @@ export function balanceTrending(items: CatalogItem[], limit = 24): CatalogItem[]
   const clean = items.filter((i) => {
     const key = i.title.trim().toLowerCase();
     if (seen.has(i.id) || seenTitle.has(key)) return false;
-    if (isRegionalDub(i) || FILLER.test(i.title)) return false;
+    if (isRegionalDub(i) || FILLER.test(i.title) || isAnime(i)) return false;
     if (!i.poster) return false;
     // Anything rated but clearly poor never belongs in a "trending" row.
     if (i.rating && Number(i.rating) < 5.5) return false;
