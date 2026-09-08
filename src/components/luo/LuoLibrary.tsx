@@ -139,8 +139,9 @@ export function LuoLibrary({ language, vj = "" }: { language: LuoLanguage; vj?: 
                         {item.kind === "series" ? "Series" : "Movie"}
                       </span>
                       {eps?.length ? (
-                        <span className="absolute bottom-6 left-1 rounded bg-emerald-500 px-1.5 py-0.5 text-[10px] font-black uppercase text-black">
-                          EP {eps.join(", ")}
+                        <span className="absolute left-1/2 top-2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500 via-green-400 to-emerald-500 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-black shadow-[0_4px_14px_-2px_rgba(16,185,129,0.7)] ring-2 ring-black/40 sm:top-2.5 sm:text-xs">
+                          <Sparkles className="size-3" />
+                          New EP {eps.join(", ")}
                         </span>
                       ) : null}
                       <span className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-gradient-to-t from-black/80 to-transparent px-1.5 pb-1 pt-6 text-[10px] font-semibold text-white/90">
