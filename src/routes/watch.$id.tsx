@@ -193,12 +193,14 @@ function WatchPage() {
   const active = sources.data?.[sourceIndex];
 
   // The provider's `resourceLink` is a short promo clip for most titles; the
-  // real movie is a signed DASH stream served straight from its CDN.
+  // real movie is a signed DASH stream served straight from its CDN. Resolve it
+  // independently of the resource list so playback never falls back to the ad.
   const playback = useQuery({
-    queryKey: ["playback", playId, season, episode, active?.id],
-    queryFn: () => getPlayback({ data: { id: playId, season, episode, resourceId: active?.id } }),
+    queryKey: ["playback", playId, season, episode],
+    queryFn: () => getPlayback({ data: { id: playId, season, episode } }),
     staleTime: 60 * 1000,
-    enabled: ready && !!active,
+    retry: 2,
+    enabled: ready,
   });
 
   useEffect(() => {
