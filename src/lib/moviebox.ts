@@ -530,6 +530,8 @@ export type StreamSource = {
   codec: string | null;
   bytes: number;
   size: string | null;
+  /** True when this file is the provider's short "upgrade your app" promo clip. */
+  promo: boolean;
   captions: { label: string; url: string }[];
 };
 
