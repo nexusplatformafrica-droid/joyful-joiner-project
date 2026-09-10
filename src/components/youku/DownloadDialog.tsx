@@ -150,8 +150,7 @@ export function DownloadDialog({
   }
   for (const source of sources) {
     if (/\.(mpd|m3u8)(\?|$)/i.test(source.url)) continue;
-    if (catalogId && ladder.has(source.resolution)) continue;
-    ladder.set(catalogId ? source.resolution : (ladder.size + 1) * -1, source);
+    if (!ladder.has(source.resolution)) ladder.set(source.resolution, source);
   }
   const videos = catalogId
     ? [...ladder.values()].sort((a, b) => b.resolution - a.resolution)
