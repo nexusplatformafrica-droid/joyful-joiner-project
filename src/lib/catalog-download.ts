@@ -263,7 +263,7 @@ export async function downloadCatalogMovie({
       return step.audio ? retrackSegment(raw, audioId) : raw;
     };
 
-    const depth = 6;
+    const depth = 12;
     const pipeline: Promise<Uint8Array>[] = [];
     for (let i = 0; i < Math.min(depth, plan.length); i++) pipeline.push(load(i));
     for (let i = 0; i < plan.length; i++) {

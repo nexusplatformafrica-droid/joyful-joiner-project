@@ -53,13 +53,15 @@ export function balanceTrending(items: CatalogItem[], limit = 24): CatalogItem[]
     const y = Number(i.year) || 0;
     const r = Number(i.rating) || 0;
     let s = 0;
-    if (y >= year) s += 5;
-    else if (y >= year - 1) s += 4;
-    else if (y >= year - 3) s += 2;
-    else if (y && y < year - 8) s -= 2;
-    if (r >= 8) s += 4;
-    else if (r >= 7) s += 3;
-    else if (r >= 6) s += 1;
+    // Recency dominates: the row must read as "what is hot right now".
+    if (y >= year) s += 12;
+    else if (y >= year - 1) s += 9;
+    else if (y >= year - 2) s += 5;
+    else if (y >= year - 4) s += 2;
+    else if (y && y < year - 8) s -= 4;
+    if (r >= 8) s += 5;
+    else if (r >= 7) s += 3.5;
+    else if (r >= 6) s += 1.5;
     else if (!r) s -= 1;
     // Respect the upstream running order a little: earlier = hotter.
     s += Math.max(0, 3 - index / 12);
