@@ -250,6 +250,38 @@ function WatchPage() {
     src: subtitleUrl(c.url),
   }));
 
+  // Never play the provider's short "upgrade your app" clip: only the signed
+  // DASH movie, or a direct file that is a real full-length encode.
+  const directSrc = active && !active.promo ? streamUrl(active.url) : null;
+  const playSrc = dashSrc ?? directSrc;
+  const loadingStream = playback.isPending || sources.isPending || (!playSrc && !playback.isFetched);
+
+  // Every quality the title exposes — DASH ladder plus every real file.
+  const qualityMap = new Map<
+    string,
+    { id: string; label: string; resolution: number; note: string | null }
+  >();
+  for (const resolution of playback.data?.resolutions ?? []) {
+    qualityMap.set(`dash-${resolution}`, {
+      id: `dash-${resolution}`,
+      label: `${resolution}p`,
+      resolution,
+      note: playback.data?.codec?.toUpperCase() ?? null,
+    });
+  }
+  for (const source of sources.data ?? []) {
+    if (source.promo) continue;
+    if (qualityMap.has(`dash-${source.resolution}`)) continue;
+    qualityMap.set(source.id, {
+      id: source.id,
+      label: source.resolution ? `${source.resolution}p` : "Auto",
+      resolution: source.resolution,
+      note: source.size,
+    });
+  }
+  const qualities = [...qualityMap.values()].sort((a, b) => b.resolution - a.resolution);
+
+
   if (!title) {
     return (
       <div className="min-h-screen bg-background">
