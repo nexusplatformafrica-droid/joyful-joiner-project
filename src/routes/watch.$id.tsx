@@ -169,9 +169,11 @@ function WatchPage() {
     const list = sources.data ?? [];
     if (!list.length) return;
     failedDirectSources.current.clear();
-    // Start on the closest thing to 720p for a fast, reliable first play.
-    let best = 0;
+    // Start on the closest thing to 720p among real files (never a promo clip).
+    let best = list.findIndex((s) => !s.promo);
+    if (best < 0) best = 0;
     list.forEach((source, index) => {
+      if (source.promo) return;
       if (Math.abs(source.resolution - 720) < Math.abs((list[best]?.resolution ?? 0) - 720)) {
         best = index;
       }
@@ -183,7 +185,9 @@ function WatchPage() {
     const list = sources.data ?? [];
     const current = list[sourceIndex];
     if (current) failedDirectSources.current.add(current.id);
-    const next = list.findIndex((source) => !failedDirectSources.current.has(source.id));
+    const next = list.findIndex(
+      (source) => !source.promo && !failedDirectSources.current.has(source.id),
+    );
     if (next < 0) return false;
     setSourceIndex(next);
     return true;
@@ -193,12 +197,14 @@ function WatchPage() {
   const active = sources.data?.[sourceIndex];
 
   // The provider's `resourceLink` is a short promo clip for most titles; the
-  // real movie is a signed DASH stream served straight from its CDN.
+  // real movie is a signed DASH stream served straight from its CDN. Resolve it
+  // independently of the resource list so playback never falls back to the ad.
   const playback = useQuery({
-    queryKey: ["playback", playId, season, episode, active?.id],
-    queryFn: () => getPlayback({ data: { id: playId, season, episode, resourceId: active?.id } }),
+    queryKey: ["playback", playId, season, episode],
+    queryFn: () => getPlayback({ data: { id: playId, season, episode } }),
     staleTime: 60 * 1000,
-    enabled: ready && !!active,
+    retry: 2,
+    enabled: ready,
   });
 
   useEffect(() => {
@@ -244,6 +250,38 @@ function WatchPage() {
     src: subtitleUrl(c.url),
   }));
 
+  // Never play the provider's short "upgrade your app" clip: only the signed
+  // DASH movie, or a direct file that is a real full-length encode.
+  const directSrc = active && !active.promo ? streamUrl(active.url) : null;
+  const playSrc = dashSrc ?? directSrc;
+  const loadingStream = playback.isPending || sources.isPending || (!playSrc && !playback.isFetched);
+
+  // Every quality the title exposes — DASH ladder plus every real file.
+  const qualityMap = new Map<
+    string,
+    { id: string; label: string; resolution: number; note: string | null }
+  >();
+  for (const resolution of playback.data?.resolutions ?? []) {
+    qualityMap.set(`dash-${resolution}`, {
+      id: `dash-${resolution}`,
+      label: `${resolution}p`,
+      resolution,
+      note: playback.data?.codec?.toUpperCase() ?? null,
+    });
+  }
+  for (const source of sources.data ?? []) {
+    if (source.promo) continue;
+    if (qualityMap.has(`dash-${source.resolution}`)) continue;
+    qualityMap.set(source.id, {
+      id: source.id,
+      label: source.resolution ? `${source.resolution}p` : "Auto",
+      resolution: source.resolution,
+      note: source.size,
+    });
+  }
+  const qualities = [...qualityMap.values()].sort((a, b) => b.resolution - a.resolution);
+
+
   if (!title) {
     return (
       <div className="min-h-screen bg-background">
@@ -274,32 +312,21 @@ function WatchPage() {
 
           <div className={`mt-3 flex flex-col gap-6 ${theater ? "" : "lg:flex-row"}`}>
             <div className="min-w-0 flex-1">
-              {sources.isPending ? (
+              {loadingStream ? (
                 <div className="aspect-video w-full animate-pulse rounded-[1.25rem] bg-muted" />
-              ) : active ? (
+              ) : playSrc ? (
                 <div className="relative overflow-hidden border border-border bg-black">
                   {!canPlay && <SubscribeGate title={title.title} />}
                   <Player
-                  src={canPlay ? (dashSrc ?? streamUrl(active.url)) : ""}
+                  src={canPlay ? playSrc : ""}
                   kind={dashSrc ? "dash" : undefined}
                   poster={title.backdrop ?? undefined}
                   title={title.title}
                   subtitles={subtitles}
-                  fileQualities={(playback.data?.resolutions?.length
-                    ? playback.data.resolutions.map((resolution) => ({
-                        id: `dash-${resolution}`,
-                        label: `${resolution}p`,
-                        resolution,
-                        note: playback.data?.codec?.toUpperCase() ?? null,
-                      }))
-                    : (sources.data ?? []).map((source) => ({
-                        id: source.id,
-                        label: source.resolution ? `${source.resolution}p` : "Auto",
-                        resolution: source.resolution,
-                        note: source.size,
-                      }))
-                  ).sort((a, b) => b.resolution - a.resolution)}
-                  activeQuality={playbackResolution ? `dash-${playbackResolution}` : active.id}
+                  fileQualities={qualities}
+                  activeQuality={
+                    dashSrc && playbackResolution ? `dash-${playbackResolution}` : (active?.id ?? "")
+                  }
                   onQualityChange={(id) => {
                     if (id.startsWith("dash-")) {
                       setPlaybackResolution(Number(id.slice(5)));
@@ -318,6 +345,7 @@ function WatchPage() {
                   No playable stream is available for this title right now.
                 </div>
               )}
+
 
               {(variants.data?.length ?? 0) > 1 && (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -370,6 +398,7 @@ function WatchPage() {
                 catalogId={playId}
                 season={season}
                 episode={episode}
+                extraResolutions={playback.data?.resolutions ?? []}
               />
 
 

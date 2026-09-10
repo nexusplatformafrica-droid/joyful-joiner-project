@@ -32,8 +32,8 @@ const homeQuery = queryOptions({
 const trendingQuery = queryOptions({
   queryKey: ["trending-wide"],
   queryFn: () => getTrending(),
-  staleTime: 60 * 1000,
-  refetchInterval: 3 * 60 * 1000,
+  staleTime: 15 * 1000,
+  refetchInterval: 60 * 1000,
   refetchIntervalInBackground: true,
   refetchOnWindowFocus: true,
   refetchOnMount: "always",

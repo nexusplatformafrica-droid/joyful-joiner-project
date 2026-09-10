@@ -530,6 +530,8 @@ export type StreamSource = {
   codec: string | null;
   bytes: number;
   size: string | null;
+  /** True when this file is the provider's short "upgrade your app" promo clip. */
+  promo: boolean;
   captions: { label: string; url: string }[];
 };
 
@@ -540,6 +542,19 @@ const fmtBytes = (bytes: number) => {
   return mb < 1024 ? `${mb.toFixed(mb < 10 ? 1 : 0)} MB` : `${(mb / 1024).toFixed(2)} GB`;
 };
 
+/**
+ * The provider ships a ~5 MB "upgrade your app" clip alongside real files.
+ * It is always tiny, so anything under 40 MB (or a few seconds long) is a
+ * promo: still listed for download, but never used as the player source.
+ */
+const isPromoEntry = (entry: any) => {
+  const bytes = Number(entry?.size) || 0;
+  const seconds = Number(entry?.duration) || 0;
+  if (bytes > 0 && bytes < 40 * 1024 * 1024) return true;
+  if (seconds > 0 && seconds < 300) return true;
+  return false;
+};
+
 const toSource = (entry: any): StreamSource => ({
   id: String(entry.resourceId ?? entry.resourceLink),
   url: String(entry.resourceLink),
@@ -547,6 +562,7 @@ const toSource = (entry: any): StreamSource => ({
   codec: entry.codecName ? String(entry.codecName) : null,
   bytes: Number(entry.size) || 0,
   size: fmtBytes(Number(entry.size) || 0),
+  promo: isPromoEntry(entry),
   captions: (entry.extCaptions ?? [])
     .filter((c: any) => typeof c?.url === "string" && c.url)
     .map((c: any) => ({ label: String(c.lanName ?? "Subtitle"), url: String(c.url) })),

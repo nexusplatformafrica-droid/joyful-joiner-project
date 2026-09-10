@@ -33,6 +33,8 @@ type Props = {
   catalogId?: string | undefined;
   season?: number | undefined;
   episode?: number | undefined;
+  /** Extra qualities carried by the real movie stream (DASH ladder). */
+  extraResolutions?: number[] | undefined;
 };
 
 export function DownloadDialog({
@@ -44,6 +46,7 @@ export function DownloadDialog({
   catalogId,
   season = 0,
   episode = 0,
+  extraResolutions,
 }: Props) {
   const { subscribed, requireSubscription } = useSubscription();
   const [probed, setProbed] = useState<Record<string, number | null>>({});
@@ -99,7 +102,7 @@ export function DownloadDialog({
   useEffect(() => {
     if (!open) return;
     for (const source of sources) {
-      if (probed[source.id] !== undefined) continue;
+      if (!source.url || probed[source.id] !== undefined) continue;
       setProbed((prev) => ({ ...prev, [source.id]: null }));
       fetch(mediaProbeUrl(source.url))
         .then((r) => (r.ok ? r.json() : null))
@@ -133,13 +136,30 @@ export function DownloadDialog({
 
   if (!open) return null;
 
-  // Keep every real media file (alternate codecs included), but never offer a
-  // streaming manifest — those save as a tiny text file, not the movie.
-  const seenRes = new Set<number>();
-  const videos = [...sources]
-    .filter((s) => !/\.(mpd|m3u8)(\?|$)/i.test(s.url))
-    .filter((s) => !catalogId || (seenRes.has(s.resolution) ? false : (seenRes.add(s.resolution), true)))
-    .sort((a, b) => a.resolution - b.resolution || String(a.codec).localeCompare(String(b.codec)));
+  // Show every quality the title exposes — the DASH ladder (up to 12K when the
+  // provider has it) plus every real file, alternate codecs included. Only a
+  // bare streaming manifest is hidden, since it saves as a text file.
+  const ladder = new Map<number, StreamSource>();
+  for (const resolution of extraResolutions ?? []) {
+    if (resolution > 0)
+      ladder.set(resolution, {
+        id: `q-${resolution}`,
+        url: "",
+        resolution,
+        codec: null,
+        size: null,
+        captions: [],
+      });
+  }
+  for (const source of sources) {
+    if (/\.(mpd|m3u8)(\?|$)/i.test(source.url)) continue;
+    if (!ladder.has(source.resolution)) ladder.set(source.resolution, source);
+  }
+  const videos = catalogId
+    ? [...ladder.values()].sort((a, b) => b.resolution - a.resolution)
+    : [...sources]
+        .filter((s) => !/\.(mpd|m3u8)(\?|$)/i.test(s.url))
+        .sort((a, b) => b.resolution - a.resolution || String(a.codec).localeCompare(String(b.codec)));
 
 
   const seenCaption = new Set<string>();
