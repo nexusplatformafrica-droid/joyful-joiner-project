@@ -312,32 +312,21 @@ function WatchPage() {
 
           <div className={`mt-3 flex flex-col gap-6 ${theater ? "" : "lg:flex-row"}`}>
             <div className="min-w-0 flex-1">
-              {sources.isPending ? (
+              {loadingStream ? (
                 <div className="aspect-video w-full animate-pulse rounded-[1.25rem] bg-muted" />
-              ) : active ? (
+              ) : playSrc ? (
                 <div className="relative overflow-hidden border border-border bg-black">
                   {!canPlay && <SubscribeGate title={title.title} />}
                   <Player
-                  src={canPlay ? (dashSrc ?? streamUrl(active.url)) : ""}
+                  src={canPlay ? playSrc : ""}
                   kind={dashSrc ? "dash" : undefined}
                   poster={title.backdrop ?? undefined}
                   title={title.title}
                   subtitles={subtitles}
-                  fileQualities={(playback.data?.resolutions?.length
-                    ? playback.data.resolutions.map((resolution) => ({
-                        id: `dash-${resolution}`,
-                        label: `${resolution}p`,
-                        resolution,
-                        note: playback.data?.codec?.toUpperCase() ?? null,
-                      }))
-                    : (sources.data ?? []).map((source) => ({
-                        id: source.id,
-                        label: source.resolution ? `${source.resolution}p` : "Auto",
-                        resolution: source.resolution,
-                        note: source.size,
-                      }))
-                  ).sort((a, b) => b.resolution - a.resolution)}
-                  activeQuality={playbackResolution ? `dash-${playbackResolution}` : active.id}
+                  fileQualities={qualities}
+                  activeQuality={
+                    dashSrc && playbackResolution ? `dash-${playbackResolution}` : (active?.id ?? "")
+                  }
                   onQualityChange={(id) => {
                     if (id.startsWith("dash-")) {
                       setPlaybackResolution(Number(id.slice(5)));
@@ -356,6 +345,7 @@ function WatchPage() {
                   No playable stream is available for this title right now.
                 </div>
               )}
+
 
               {(variants.data?.length ?? 0) > 1 && (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
