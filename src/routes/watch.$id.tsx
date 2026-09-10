@@ -398,6 +398,7 @@ function WatchPage() {
                 catalogId={playId}
                 season={season}
                 episode={episode}
+                extraResolutions={playback.data?.resolutions ?? []}
               />
 
 

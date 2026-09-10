@@ -33,6 +33,8 @@ type Props = {
   catalogId?: string | undefined;
   season?: number | undefined;
   episode?: number | undefined;
+  /** Extra qualities carried by the real movie stream (DASH ladder). */
+  extraResolutions?: number[] | undefined;
 };
 
 export function DownloadDialog({
@@ -44,6 +46,7 @@ export function DownloadDialog({
   catalogId,
   season = 0,
   episode = 0,
+  extraResolutions,
 }: Props) {
   const { subscribed, requireSubscription } = useSubscription();
   const [probed, setProbed] = useState<Record<string, number | null>>({});
@@ -99,7 +102,7 @@ export function DownloadDialog({
   useEffect(() => {
     if (!open) return;
     for (const source of sources) {
-      if (probed[source.id] !== undefined) continue;
+      if (!source.url || probed[source.id] !== undefined) continue;
       setProbed((prev) => ({ ...prev, [source.id]: null }));
       fetch(mediaProbeUrl(source.url))
         .then((r) => (r.ok ? r.json() : null))
