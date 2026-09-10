@@ -185,7 +185,9 @@ function WatchPage() {
     const list = sources.data ?? [];
     const current = list[sourceIndex];
     if (current) failedDirectSources.current.add(current.id);
-    const next = list.findIndex((source) => !failedDirectSources.current.has(source.id));
+    const next = list.findIndex(
+      (source) => !source.promo && !failedDirectSources.current.has(source.id),
+    );
     if (next < 0) return false;
     setSourceIndex(next);
     return true;
