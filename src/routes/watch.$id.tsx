@@ -169,9 +169,11 @@ function WatchPage() {
     const list = sources.data ?? [];
     if (!list.length) return;
     failedDirectSources.current.clear();
-    // Start on the closest thing to 720p for a fast, reliable first play.
-    let best = 0;
+    // Start on the closest thing to 720p among real files (never a promo clip).
+    let best = list.findIndex((s) => !s.promo);
+    if (best < 0) best = 0;
     list.forEach((source, index) => {
+      if (source.promo) return;
       if (Math.abs(source.resolution - 720) < Math.abs((list[best]?.resolution ?? 0) - 720)) {
         best = index;
       }
