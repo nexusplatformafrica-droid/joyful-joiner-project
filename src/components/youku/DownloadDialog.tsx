@@ -133,13 +133,31 @@ export function DownloadDialog({
 
   if (!open) return null;
 
-  // Keep every real media file (alternate codecs included), but never offer a
-  // streaming manifest — those save as a tiny text file, not the movie.
-  const seenRes = new Set<number>();
-  const videos = [...sources]
-    .filter((s) => !/\.(mpd|m3u8)(\?|$)/i.test(s.url))
-    .filter((s) => !catalogId || (seenRes.has(s.resolution) ? false : (seenRes.add(s.resolution), true)))
-    .sort((a, b) => a.resolution - b.resolution || String(a.codec).localeCompare(String(b.codec)));
+  // Show every quality the title exposes — the DASH ladder (up to 12K when the
+  // provider has it) plus every real file, alternate codecs included. Only a
+  // bare streaming manifest is hidden, since it saves as a text file.
+  const ladder = new Map<number, StreamSource>();
+  for (const resolution of extraResolutions ?? []) {
+    if (resolution > 0)
+      ladder.set(resolution, {
+        id: `q-${resolution}`,
+        url: "",
+        resolution,
+        codec: null,
+        size: null,
+        captions: [],
+      });
+  }
+  for (const source of sources) {
+    if (/\.(mpd|m3u8)(\?|$)/i.test(source.url)) continue;
+    if (catalogId && ladder.has(source.resolution)) continue;
+    ladder.set(catalogId ? source.resolution : (ladder.size + 1) * -1, source);
+  }
+  const videos = catalogId
+    ? [...ladder.values()].sort((a, b) => b.resolution - a.resolution)
+    : [...sources]
+        .filter((s) => !/\.(mpd|m3u8)(\?|$)/i.test(s.url))
+        .sort((a, b) => b.resolution - a.resolution || String(a.codec).localeCompare(String(b.codec)));
 
 
   const seenCaption = new Set<string>();
